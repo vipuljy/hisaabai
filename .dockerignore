@@ -1,0 +1,16 @@
+.env
+.env.*
+!.env.example
+data/
+discovery/
+outputs/
+tests/
+src/
+docs/
+.git/
+.github/
+.venv/
+**/__pycache__/
+.pytest_cache/
+*.bat
+deploy/

@@ -1,0 +1,10 @@
+# What the running bot needs (the Docker image installs only these)
+fastapi>=0.110
+uvicorn[standard]>=0.29
+httpx>=0.27
+python-dotenv>=1.0
+anthropic>=0.40
+pillow>=10.0
+psycopg[binary]>=3.1
+pypdfium2>=4.0   # supplier PDFs sent on WhatsApp: free text reading + page image
+av>=12.0         # voice notes: decode WhatsApp OGG/Opus and cut notes over 30 s for Sarvam

@@ -1,0 +1,7 @@
+# The free OCR check for the RUNNING bot (the Docker image installs this): read-policy checks a (OCR total vs
+# Haiku's total) and b (words = digits / maths proofs). Pinned to the versions the step-9 eval used, so what we
+# measured is what ships. RapidOCR brings its models in the wheel (no download at run time).
+rapidocr==3.10.0
+onnxruntime==1.23.2
+# Photo orientation (Tesseract OSD, 11 of 136 eval photos were turned): the tesseract binary comes from apt.
+pytesseract>=0.3.10

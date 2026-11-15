@@ -1,0 +1,26 @@
+id,say_this,intent,amount,supplier
+V01,Sharma Traders ko paanch hazaar diye,payment,5000,Sharma Traders
+V02,Gupta Agency ko 2500 rupaye de diye,payment,2500,Gupta Agency
+V03,kitna baaki hai,dues,,
+V04,Mehta and Sons ko dhai hazaar bheje,payment,2500,Mehta & Sons
+V05,Jain Distributors ko barah sau diye aaj,payment,1200,Jain Distributors
+V06,Bansal Wholesale ko das hazaar ka payment kar diya,payment,10000,Bansal Wholesale
+V07,sabka hisaab batao,dues,,
+V08,Sharma ji ko teen hazaar paanch sau diye,payment,3500,Sharma Traders
+V09,Gupta ko saadhe chaar hazaar UPI se bheje,payment,4500,Gupta Agency
+V10,aaj mausam kaisa hai,other,,
+V11,Mehta ko aath sau rupaye cash diye,payment,800,Mehta & Sons
+V12,kis supplier ka kitna dena hai,dues,,
+V13,Jain Distributors ko pandrah hazaar transfer kiye,payment,15000,Jain Distributors
+V14,Bansal ko do hazaar diye,payment,2000,Bansal Wholesale
+V15,Sharma Traders ko 7250 de diye,payment,7250,Sharma Traders
+V16,baaki kitna hai sab milake,dues,,
+V17,Gupta Agency ko ek lakh diye,payment,100000,Gupta Agency
+V18,Mehta and Sons ko nau hazaar chukaye,payment,9000,Mehta & Sons
+V19,kal wala bill dikhao,other,,
+V20,Jain ko chhe hazaar bheje online,payment,6000,Jain Distributors
+V21,Bansal Wholesale ko paune do hazaar diye,payment,1750,Bansal Wholesale
+V22,Sharma ko pachees sau diye,payment,2500,Sharma Traders
+V23,balance batao,dues,,
+V24,Gupta Agency ko solah hazaar jama kiye,payment,16000,Gupta Agency
+V25,Mehta and Sons ko gyarah sau diye,payment,1100,Mehta & Sons

@@ -1,0 +1,5 @@
+# The second free OCR engine (RapidOCR) on the laptop: step-6/9 evals (reader ocr_rapid) and the bot's OCR check.
+# About 80 MB of packages (models included, no download). Python 3.8-3.13. The bot image installs only
+# requirements-ocr-bot.txt (same pinned versions).
+-r requirements.txt
+-r requirements-ocr-bot.txt

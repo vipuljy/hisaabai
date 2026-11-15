@@ -1,0 +1,27 @@
+# Render FREE only (docs/14_free_hosting.md, option 2): a free Render service sleeps after 15 minutes without
+# traffic, and waking it takes about a minute. This pings it every 10 minutes so WhatsApp messages get a fast reply.
+# Does nothing until you add the secret, so it is harmless on any other host.
+# Setup: GitHub repo > Settings > Secrets and variables > Actions > New secret:
+#   HISAAB_KEEPALIVE_URL   e.g. https://hisaabai.onrender.com   (no trailing slash)
+# Cost: free on a PUBLIC repo. On a PRIVATE repo every run uses Actions minutes (about 4,400 runs a month):
+# check Settings > Billing before turning it on.
+name: keep-alive
+
+on:
+  schedule:
+    - cron: "*/10 * * * *"   # every 10 minutes (GitHub may start a run late or skip one when busy)
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 3
+    steps:
+      - name: Ping the bot
+        env:
+          URL: ${{ secrets.HISAAB_KEEPALIVE_URL }}
+        run: |
+          if [ -z "$URL" ]; then echo "HISAAB_KEEPALIVE_URL not set; nothing to do."; exit 0; fi
+          # /health also touches the database, so it proves the whole bot is up (and keeps the DB connection warm)
+          curl --fail -sS -o /dev/null -w "HTTP %{http_code} in %{time_total}s\n" --retry 3 --retry-delay 20 \
+               --retry-all-errors -m 90 "$URL/health"

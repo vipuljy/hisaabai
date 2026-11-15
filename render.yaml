@@ -1,0 +1,70 @@
+# Render Blueprint for the live bot (docs/14_free_hosting.md, option 2; env var list: docs/15_render_env.md).
+# Render > New > Blueprint > pick this repo. "sync: false" = Render asks you for the value once (never stored here).
+# Render passes every env var to the Docker build as a build arg, so OCR=0 builds the image without RapidOCR.
+services:
+  - type: web
+    name: hisaabai
+    runtime: docker
+    plan: free
+    region: singapore
+    dockerfilePath: ./Dockerfile
+    dockerContext: .
+    healthCheckPath: /health
+    autoDeployTrigger: commit
+    envVars:
+      # --- secrets: typed in the Render dashboard, never in this file
+      - key: WHATSAPP_TOKEN
+        sync: false
+      - key: PHONE_NUMBER_ID
+        sync: false
+      - key: VERIFY_TOKEN
+        sync: false
+      - key: APP_SECRET
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: DATABASE_URL
+        sync: false
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_SERVICE_KEY
+        sync: false
+      - key: SARVAM_API_KEY
+        sync: false
+      - key: JOBS_TOKEN
+        sync: false
+      # --- settings (not secret)
+      - key: OCR
+        value: "0"
+      - key: OCR_CHECK
+        value: "0"
+      - key: READ_POLICY
+        value: P5_no_ocr
+      - key: REQUIRE_PERSISTENT_STORAGE
+        value: "1"
+      - key: GRAPH_VERSION
+        value: v23.0
+      - key: BILL_MODEL
+        value: claude-haiku-5-5
+      - key: ESCALATION_MODEL
+        value: claude-sonnet-5-5
+      - key: BILL_PROMPT
+        value: v2
+      - key: QA_LLM
+        value: "0"
+      - key: VOICE_LLM
+        value: "1"
+      - key: PHOTO_BUCKET
+        value: bill-photos
+      - key: TEMPLATE_LANGUAGE
+        value: en
+      - key: PILOT_OPEN
+        value: ""
+      - key: AI_CALLS_PER_SHOP_PER_DAY
+        value: "60"
+      - key: AI_CALLS_PER_DAY
+        value: "1000"
+      - key: MAX_IMAGE_MB
+        value: "8"
+      - key: MAX_PDF_MB
+        value: "10"

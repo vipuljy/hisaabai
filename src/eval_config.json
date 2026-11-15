@@ -1,0 +1,14 @@
+	{
+  "_note": "Runs = model x prompt. Fill prices from https://www.anthropic.com/pricing before trusting the cost column; leave null to skip cost.",
+  "runs": [
+    {"name": "haiku_v1", "model": "claude-haiku-5-5", "prompt": "v1"},
+    {"name": "haiku_v2", "model": "claude-haiku-5-5", "prompt": "v2"},
+    {"name": "sonnet_v1", "model": "claude-sonnet-5-5", "prompt": "v1"},
+    {"name": "sonnet_v2", "model": "claude-sonnet-5-5", "prompt": "v2"}
+  ],
+  "prices": {
+  "claude-haiku-5-5":  {"input_usd_per_mtok": 0.10, "output_usd_per_mtok": 0.50},
+  "claude-sonnet-5-5": {"input_usd_per_mtok": 2,    "output_usd_per_mtok": 10}
+},
+  "usd_to_inr":95
+}

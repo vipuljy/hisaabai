@@ -1,0 +1,31 @@
+file,say_this,true_intent,true_amount,true_supplier
+v01.ogg,Sharma Traders ko paanch hazaar diye,payment,5000,Sharma Traders
+v02.ogg,Gupta ko 2500 cash de diya,payment,2500,Gupta
+v03.ogg,Verma Medical ko dhai sau diye,payment,250,Verma Medical
+v04.ogg,Bansal Hardware ko saade teen hazaar diye,payment,3500,Bansal Hardware
+v05.ogg,Kapoor Agency ko ek lakh bees hazaar transfer kiye,payment,120000,Kapoor Agency
+v06.ogg,Mittal ji ko saat sau assi rupay diye,payment,780,Mittal
+v07.ogg,paid 4200 to Singh Distributors,payment,4200,Singh Distributors
+v08.ogg,"Rawat Traders ka payment kar diya, barah sau",payment,1200,Rawat Traders
+v09.ogg,"Sharma ko teen hazaar... nahi nahi, chaar hazaar diye",payment,4000,Sharma
+v10.ogg,(v01 again with the TV or fan loud),payment,5000,Sharma Traders
+v11.ogg,(v02 again said very fast),payment,2500,Gupta
+v12.ogg,Sharma ko 2000 aur Gupta ko 1500 diye,payment+payment,2000+1500,Sharma+Gupta
+v13.ogg,Sharma ka kitna baaki hai?,question,,
+v14.ogg,kal Gupta ko paanch hazaar dena hai,future,5000,Gupta
+v15.ogg,Verma se 2000 aaye,received,2000,Verma
+v16.ogg,Sharma ka bill aaya 8000 ka,bill,8000,Sharma
+v17.ogg,aaj dukaan band rahegi,chatter,,
+v18.ogg,"(about 40 s of chatter about the day, then) ...aur haan, Bansal ko 6000 diye",payment,6000,Bansal
+v19.ogg,(about 45 s of chatter with no payment),chatter,,
+v20.ogg,(your own: fill what you actually said),,,
+v21.ogg,"Gupta Agency ka bill aaya 12 hazaar ka, 15 din ka udhaar",bill,12000,Gupta Agency
+v22.ogg,Singh Distributors se saade teen hazaar ka maal aaya,bill,3500,Singh Distributors
+v23.ogg,Rawat Traders ka bill 4580,bill,4580,Rawat Traders
+v24.ogg,Kapoor Agency ko 8000 nahi 8500 diye the,correction,8500,Kapoor Agency
+v25.ogg,Mittal wala bill hata do,undo,2500,Mittal
+v26.ogg,last wala galat hai,undo,8000,Kapoor Agency
+v27.ogg,Bansal ko 2000 diye aur Verma ka bill 1500 aaya,payment+bill,2000+1500,Bansal+Verma
+v28.ogg,Sharma Traders ko dedh lakh transfer kiye,payment,150000,Sharma Traders
+v29.ogg,Verma Medical ko kal 3000 bhejna hai,future,3000,Verma Medical
+v30.ogg,Om Steel ka bill saat hazaar ka aaya,bill,7000,Om Steel

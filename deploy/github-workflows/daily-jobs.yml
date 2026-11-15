@@ -1,0 +1,28 @@
+# Calls the hosted bot once a day so it sends due reminders, the Sunday summary,
+# and deletes photos older than 30 days. Free on GitHub.
+# Setup (once the bot is hosted): GitHub repo > Settings > Secrets and variables > Actions > New secret:
+#   HISAAB_BOT_URL     e.g. https://hisaabai.onrender.com   (no trailing slash)
+#   HISAAB_JOBS_TOKEN  the same value as JOBS_TOKEN on the host
+name: daily-jobs
+
+on:
+  schedule:
+    - cron: "15 4 * * *"   # 04:15 UTC = 09:45 IST; GitHub can start a few minutes late
+  workflow_dispatch:         # "Run workflow" button for a manual run
+
+jobs:
+  run:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Call /jobs/daily
+        env:
+          BOT_URL: ${{ secrets.HISAAB_BOT_URL }}
+          JOBS_TOKEN: ${{ secrets.HISAAB_JOBS_TOKEN }}
+        run: |
+          if [ -z "$BOT_URL" ] || [ -z "$JOBS_TOKEN" ]; then
+            echo "Secrets not set yet; nothing to do."; exit 0
+          fi
+          # A sleeping free host can take ~1 minute to wake: retry a few times
+          curl --fail-with-body -sS --retry 4 --retry-delay 20 --retry-all-errors -m 120 \
+               -X POST -H "X-Jobs-Token: $JOBS_TOKEN" "$BOT_URL/jobs/daily"

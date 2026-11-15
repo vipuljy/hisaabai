@@ -1,0 +1,7 @@
+criterion,weight,wedge_A_supplier_bills,wedge_B_udhaar,wedge_C_cash_upi
+how_often_it_happens,0.25,,,
+how_much_it_hurts,0.25,,,
+workaround_is_weak,0.15,,,
+willing_to_try_2_weeks,0.15,,,
+willing_to_pay,0.10,,,
+ai_clearly_helps,0.10,,,

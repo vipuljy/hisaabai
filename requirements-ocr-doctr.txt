@@ -1,0 +1,5 @@
+# Optional third engine for the step-6 comparison (reader ocr_doctr, and ocr_agree = RapidOCR and docTR read the same
+# total). About 1 GB installed with PyTorch. On Windows, PyPI's torch is the CPU build. Not needed by the bot.
+-r requirements-ocr-extra.txt
+torch>=2.6
+python-doctr>=0.11

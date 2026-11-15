@@ -1,0 +1,44 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Real shop data: never on GitHub
+data/
+discovery/private/
+*.jsonl
+
+# Python
+.venv/
+__pycache__/
+.pytest_cache/
+.ipynb_checkpoints/
+
+# Eval outputs: hold transcripts, real supplier names and bill details from data/
+outputs/
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Voice notes and other audio (owners' voices are personal data)
+*.ogg
+*.opus
+*.m4a
+*.mp3
+*.wav
+*.aac
+*.flac
+*.amr
+
+# Bill photos / PDFs anywhere outside data/ by mistake
+*.jpg
+*.jpeg
+*.png
+*.heic
+*.pdf
+!deploy/brand/**
+
+# Files Claude could not delete (no delete permission): remove this folder by hand
+_to_delete/

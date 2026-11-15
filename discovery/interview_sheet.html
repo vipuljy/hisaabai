@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HisaabAI Interview Sheet</title>
+<style>
+  @page { size: A4; margin: 12mm; }
+  :root { --ink: #1a1a1a; --quiet: #666; --rule: #bbb; --tint: #f3f3f3; }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 16px; background: #fff; color: var(--ink);
+         font: 11.5px/1.4 "Segoe UI", Arial, sans-serif; }
+  .page { max-width: 186mm; margin: 0 auto; }
+  h1 { font-size: 16px; margin: 0 0 2px; }
+  .sub { color: var(--quiet); margin: 0 0 10px; }
+  .meta { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px 12px; margin-bottom: 10px; }
+  .meta div { border-bottom: 1px solid var(--rule); padding: 10px 0 2px; color: var(--quiet); font-size: 10.5px; }
+  .rules { background: var(--tint); padding: 6px 10px; border-radius: 6px; margin-bottom: 10px; font-size: 10.5px; }
+  .rules b { color: var(--ink); }
+  ol { margin: 0; padding-left: 22px; }
+  li { margin: 0 0 4px; break-inside: avoid; }
+  li .q { font-weight: 600; }
+  li .lines { border-bottom: 1px solid var(--rule); height: 24px; }
+  li .lines.two { height: 36px; background: repeating-linear-gradient(transparent 0 17px, var(--rule) 17px 18px); border: 0; }
+  .end { break-before: page; }
+  table { width: 100%; border-collapse: collapse; margin: 6px 0 12px; }
+  th, td { border: 1px solid var(--rule); padding: 5px 6px; text-align: left; vertical-align: top; }
+  th { background: var(--tint); font-weight: 600; }
+  td.box { width: 18%; }
+  .consent { border: 1.5px dashed var(--ink); padding: 10px; border-radius: 6px; margin-top: 12px; }
+  .consent p { margin: 0 0 14px; }
+  .sig { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .sig div { border-bottom: 1px solid var(--ink); padding-top: 18px; color: var(--quiet); font-size: 10px; }
+  @media screen { body { background: #e9e9e9; } .page { background: #fff; padding: 16px; } }
+  @media (max-width: 640px) { .meta { grid-template-columns: 1fr 1fr; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>HisaabAI shop interview</h1>
+  <p class="sub">About 25 minutes. Print one per shop. Write their exact words for any pain.</p>
+
+  <div class="meta">
+    <div>Shop ID (S01, S02...)</div><div>Segment</div><div>Area / market</div><div>Date, time</div>
+    <div>Staff count</div><div>Owner age band</div><div>Bills per week</div><div>Records in: register / app / CA</div>
+  </div>
+
+  <div class="rules"><b>Rules:</b> ask about the past ("pichhli baar kya hua"), never "would you use this" until Q13. Ask to see the bill file. Listen 80%, talk 20%. No shop name or phone number on this sheet: use the Shop ID.</div>
+
+  <ol>
+    <li><span class="q">Aapki dukaan kitne saal se hai? Hisaab kaun dekhta hai?</span><div class="lines"></div></li>
+    <li><span class="q">Ek din mein supplier ke kitne bill aate hain? Hafte mein?</span><div class="lines"></div></li>
+    <li><span class="q">Bill aane ke baad aap uske saath kya karte hain? Mujhe dikha sakte hain?</span><div class="lines two"></div></li>
+    <li><span class="q">Hisaab kahan likhte hain: register, Excel, app, ya CA ko dete hain?</span><div class="lines"></div></li>
+    <li><span class="q">Ek bill ka hisaab likhne mein kitna time lagta hai?</span> <i>(Time them on 3 bills if possible: ___ / ___ / ___ min)</i><div class="lines"></div></li>
+    <li><span class="q">Pichhle mahine kabhi supplier ka payment bhool gaye ya late hua? Kya hua tha?</span><div class="lines two"></div></li>
+    <li><span class="q">Kabhi supplier ke saath hisaab pe jhagda hua? Kaise suljhaya?</span><div class="lines two"></div></li>
+    <li><span class="q">Customers ka udhaar kaise track karte hain? Wapas lene mein kitni dikkat hoti hai?</span><div class="lines two"></div></li>
+    <li><span class="q">Din ke end mein cash aur UPI ka hisaab milta hai? Kitni baar mismatch hota hai?</span><div class="lines two"></div></li>
+    <li><span class="q">In sab mein sabse zyada sir-dard kaunsa hai? Kyun?</span><div class="lines two"></div></li>
+    <li><span class="q">Iske liye koi app try kiya? Kyun chhod diya?</span><div class="lines"></div></li>
+    <li><span class="q">WhatsApp pe din mein kitna kaam hota hai? Voice note bhejte hain?</span><div class="lines"></div></li>
+    <li><span class="q">Agar WhatsApp pe bill ki photo bhejo aur hisaab apne aap ban jaaye, kya aap 2 hafte try karenge?</span> &nbsp; Yes / Maybe / No<div class="lines"></div></li>
+    <li><span class="q">Agar ye kaam kare, toh mahine ka kitna dena theek lagega?</span> &nbsp; Rs ______<div class="lines"></div></li>
+    <li><span class="q">Kya main bill ki 5 to 10 photos le sakta hoon (naam chhupa ke) taaki system test kar sakoon?</span> &nbsp; Photos taken: ____</li>
+  </ol>
+
+  <div class="end"></div>
+  <h1>After the interview (fill within 1 hour)</h1>
+  <p class="sub">Score 1 (low) to 5 (high) for each wedge, from what you heard and saw.</p>
+  <table>
+    <tr><th>Criterion</th><th>A. Supplier bills</th><th>B. Udhaar</th><th>C. Cash / UPI</th></tr>
+    <tr><td>How often it happens</td><td class="box"></td><td class="box"></td><td class="box"></td></tr>
+    <tr><td>How much it hurts (time or money)</td><td class="box"></td><td class="box"></td><td class="box"></td></tr>
+    <tr><td>Current workaround is weak</td><td class="box"></td><td class="box"></td><td class="box"></td></tr>
+    <tr><td>Willing to try for 2 weeks</td><td class="box"></td><td class="box"></td><td class="box"></td></tr>
+    <tr><td>Willing to pay something</td><td class="box"></td><td class="box"></td><td class="box"></td></tr>
+    <tr><td>AI clearly helps (photo, voice)</td><td class="box"></td><td class="box"></td><td class="box"></td></tr>
+  </table>
+  <p><b>Best quote (exact words):</b></p><div style="border-bottom:1px solid var(--rule);height:36px"></div>
+  <p><b>Surprise (what I did not expect):</b></p><div style="border-bottom:1px solid var(--rule);height:36px"></div>
+
+  <div class="consent">
+    <p><b>Consent slip.</b> Main apni marzi se bill ki photos aur jawab de raha / rahi hoon, sirf is project ko test karne ke liye. Naam aur number kahin public nahi honge, aur kehne par sab delete hoga.</p>
+    <div class="sig"><div>Shop ID</div><div>Signature or "recorded verbally"</div><div>Date</div></div>
+  </div>
+</div>
+</body>
+</html>

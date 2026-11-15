@@ -1,0 +1,10 @@
+# Everything for the laptop: the bot, tests, eval and review mining
+-r requirements-bot.txt
+pytest>=8.0
+pandas>=2.0
+google-play-scraper>=1.2.7
+pypdfium2>=4.0
+pytesseract>=0.3.10
+scikit-learn>=1.4
+matplotlib>=3.8
+opencv-python-headless>=4.8

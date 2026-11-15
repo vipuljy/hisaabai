@@ -1,0 +1,4 @@
+shop_id,segment,area,staff_count,visit_date,status,consent,bill_photos,bills_per_week,minutes_per_bill,top_pain,willing_to_try,price_ok_rs,notes
+S01,kirana,,,,,,,,,,,,
+S02,medical,,,,,,,,,,,,
+S03,hardware,,,,,,,,,,,,
