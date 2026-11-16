@@ -33,9 +33,12 @@ from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
+from bot import redact
+
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 log = logging.getLogger("hisaabai")
+redact.install()   # no key value ever reaches the logs (bot/redact.py)
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
@@ -124,6 +127,13 @@ def bot_from_env():
                question_llm=question_llm, timing_events=True)
 
 
+def config_problem() -> str | None:
+    """A key pasted with a space or line break (two .env lines in one box): every reply would fail."""
+    bad = redact.pasted_wrong()
+    return (f"{', '.join(bad)}: has a space or line break. Paste only the value, on one line "
+            "(Render > Environment)") if bad else None
+
+
 def storage_problem(b) -> str | None:
     """With REQUIRE_PERSISTENT_STORAGE=1: why data would be lost on a host that wipes its disk (Render), or None."""
     if os.getenv("REQUIRE_PERSISTENT_STORAGE", "").strip() != "1":
@@ -164,6 +174,10 @@ def create_app(bot=None, verify_token: str | None = None, app_secret: str | None
         except Exception:
             log.exception("health check: database unreachable")
             db_ok, problem = False, None
+        bad_key = config_problem()
+        if bad_key:   # every reply would fail: fail the deploy instead, with the reason
+            log.error("health check: %s", bad_key)
+            return JSONResponse({"status": "down", "config": bad_key}, status_code=503)
         if problem:
             log.error("health check: %s", problem)
             return JSONResponse({"status": "down", "db": "ok" if db_ok else "down", "storage": problem}, status_code=503)

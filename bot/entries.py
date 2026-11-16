@@ -1015,6 +1015,12 @@ def parse(text: str, suppliers: list[dict], today: date, recent: list[dict] | No
             skipped.append(" ".join(x for x in o if x != SEP))
     if not found and not fixes:
         return Understood("none")
+    # the owner repeating the amount ('Sharma ko 200 diye... 200', common in voice notes: 16 Nov phone test): one
+    # entry, not a second card. A bare number with the same amount as the part before, not joined by 'aur'.
+    echo = [p for k, p in enumerate(found) if k > 0 and p.intent == "kind" and p.amount == found[k - 1].amount
+            and not (p.supplier or p.candidates or p.name) and not getattr(p, "joined", False)]
+    found = [p for p in found if p not in echo]
+    order = [x for x in order if not (x[0] == "part" and x[1] in echo)]
     # a part with no verb takes the verb of its neighbour ('Sharma ko 2000 aur Verma ko 1500 diye') only if it
     # names its own supplier or is joined by 'aur'; '..., 5000 baaki' / '..., total 8000' never become cards
     for k, p in enumerate(found):

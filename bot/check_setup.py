@@ -305,9 +305,15 @@ class Checker:
             return [Result("OK", "Local bot", "running; it accepts your VERIFY_TOKEN (Meta's check will pass)")]
         return [Result("FAIL", "Local bot", "running but rejects VERIFY_TOKEN. Restart it after editing .env.")]
 
+    def pasted(self) -> list[Result]:
+        """A key with a space or line break: usually two .env lines pasted together (16 Nov, on Render)."""
+        from bot.redact import pasted_wrong
+        return [Result("FAIL", k, "has a space or line break inside: keep only the value, on one line")
+                for k in pasted_wrong(self.env)]
+
     def run_all(self) -> list[Result]:
         results = []
-        for step in (self.misc, self.whatsapp, self.webhook_settings, self.templates, self.anthropic, self.sarvam,
+        for step in (self.pasted, self.misc, self.whatsapp, self.webhook_settings, self.templates, self.anthropic, self.sarvam,
                      self.database, self.photo_storage, self.local_bot):
             try:
                 results += step()

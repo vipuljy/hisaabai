@@ -60,10 +60,12 @@ HISAAB_WORDS = {"hisaab", "hisab", "hisaab dekhein", "hisaab dikhao", "hisab dik
 CANCEL_WORDS = {"cancel", "rehne do", "rehne de", "chhodo", "chodo", "chhod do", "mat karo", "kuch nahi", "nahi chahiye"}
 SUPPLIER_SLOT = {"dues_supplier", "paid_period", "bills_period", "last_payment", "set_reminder"}
 # 'mera data delete karo', 'DELETE', 'saara hisaab mita do' (whole message only: 'last entry delete karo' is a fix)
+# the verb as owners type it: karo / kro / kar do / krdo / kar dijiye / karna / kijiye (16 Nov: 'kro' was missed)
+_DEL_VERB = r"(?:\s+(?:k(?:a)?r(?:o|do|na|dena)?(?:\s+(?:do|dijiye|dena|dijie))?|kijiye|kijie|dijiye|do|please|plz))?"
 DELETE_DATA_RE = re.compile(
-    r"^(?:delete|delete (?:my |mera )?data|data delete(?: kar(?:o| do| dijiye| dena)?)?|"
+    r"^(?:delete|delete (?:my |mera |all )?data|data delete" + _DEL_VERB + "|"
     r"(?:mera|meri|mere|sara|saara|sab|poora|pura|apna|saari)\s+(?:data|hisaab|hisab|khata|record)\s+"
-    r"(?:delete|mita|mitao|mita do|hata|hatao|hata do|saaf)(?:\s+(?:kar|karo|kar do|kardo|kar dijiye|dijiye|do))?)$")
+    r"(?:delete|mita|mitao|mita do|hata|hatao|hata do|saaf)" + _DEL_VERB + ")$")
 PROOF_RE = re.compile(r"\b(proof|pruf|saboot|sabut|praman|pramaan)\b")
 SLOW_REPLY_MS = 5000
 # Per-message reply timing (with DB_TIMER in bot/store.py): WhatsApp sends [count, seconds], and the "typing..." call

@@ -67,7 +67,7 @@ and what it does now, the design rules behind the fixes, and what was measured. 
 ## 4. What was measured
 | Check | Result | How to reproduce |
 |---|---|---|
-| Tests | 754 passed on both stores (587 + 167 skipped on a laptop without Postgres), after the 16 Nov fixes | `RUN_TESTS.bat` |
+| Tests | 771 passed on both stores (603 + 168 skipped on a laptop without Postgres), after the 16 Nov fixes | `RUN_TESTS.bat` |
 | Entries eval: main / blind / blind2 | 78 / 68 / 77 correct, **0 WRONG** (blind2 76 → 77) | `RUN_STEP12_entries_eval.bat` |
 | Questions eval | 97% correct, 0 WRONG (unchanged) | `python src/10_questions_eval.py` |
 | Voice eval (20 real notes) | 13 correct, 6 partial, 1 safe, 0 WRONG (unchanged) | `RUN_STEP11b_voice_score.bat` |
@@ -101,3 +101,12 @@ usual answer first; speed is measured in parts before anything is moved.
 WhatsApp 0.6 s per message sent, other 1.0 s. "Other" was mostly waiting for Meta's typing call (0.7-1.2 s), so
 "typing..." is now shown only for photos, voice notes and PDFs. The database is a third of each reply: that is the
 region question, measured again on Render (step 7).
+
+**Measured on Render (Singapore, database in Mumbai), 16 Nov morning:** text replies 0.70-0.81 s and button taps
+0.68-0.69 s; the database 12-23 ms per reply (5-8 queries); sending to WhatsApp about 0.7 s, now most of a text reply.
+Voice notes 5.1-8.6 s (download + Sarvam + reply); one photo that was not a bill 16.7 s (to check with real bills).
+Decision: the database stays in Mumbai (the rule was "move above 2 s").
+
+**Also found that morning:** a voice note with the amount said twice made two cards (now one); "mera data delete
+kro" was not recognised (now it is); and a key pasted together with the next `.env` line broke every reply and
+printed the token in the logs (now /health fails with the reason, and logs hide key values: `bot/redact.py`).
