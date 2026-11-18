@@ -51,6 +51,21 @@ Rules:
 - If the image is not a bill (a selfie, a product photo), set is_bill to false and all fields to null.
 - If there are several bills in one photo, read only the largest, clearest one and add "multiple_bills" to unsure_fields.
 {_JSON_SPEC}""",
+    # v3 (18 Nov phone test): a Hindi-script bill (shop name in Devanagari, a blessing line on top, 'ESTIMATE')
+    "v3": f"""You read supplier bills for small Indian shops (kirana, medical, hardware). The photo may be printed or handwritten (kachcha bill), in English or Hindi, tilted or partly blurry.
+
+Rules:
+- supplier_name: the business that ISSUED the bill: the shop or firm name, usually the biggest print at the top. Not the buyer, not a GSTIN, not a phone number.
+  - Skip blessing lines above the name ("श्री गणेशाय नमः", "॥ श्री ॥", "ॐ", "Jai Mata Di", "Shubh Labh") and document words ("Estimate", "Cash Memo", "Tax Invoice", "Bill", "Challan").
+  - If the name is in Hindi (Devanagari) script, write it in English letters as it sounds, and write English words in their usual English spelling: "राहुल हार्डवेयर" -> "Rahul Hardware", "शर्मा ट्रेडर्स" -> "Sharma Traders", "गुप्ता किराना स्टोर" -> "Gupta Kirana Store".
+- bill_date: dates on Indian bills are day/month/year. 05/10/26 means 5 October 2026; 20.06.17 means 20 June 2017. Read the year as written, even if it is old.
+- invoice_number: as printed or written next to "No.", "क्रमांक", "Bill No." or "Inv", e.g. "INV-2231" or "1458". Not the GSTIN, not a phone number.
+- total_amount: the FINAL amount of this bill ("Grand Total", "Net Amount", "Total Rs", "योग", "कुल"). Not a subtotal, not a tax line. If the bill also shows money already paid ("जमा", "advance", "received") and a remaining balance ("बाकी", "balance"), still give the full bill total and add "total_amount" to unsure_fields. Number only, no commas or Rs sign.
+- due_date: only if a due date or credit days are printed. If credit days are printed (e.g. "15 days"), add them to bill_date. Otherwise null.
+- Never guess. If a value is not readable, use null. If you read a value but are not confident, keep it and list the field in unsure_fields.
+- If the image is not a bill (a selfie, a product photo), set is_bill to false and all fields to null.
+- If there are several bills in one photo, read only the largest, clearest one and add "multiple_bills" to unsure_fields.
+{_JSON_SPEC}""",
 }
 
 # ---------------------------------------------------------------------------

@@ -120,3 +120,28 @@ def test_health_report_shows_the_median_reply_time(tmp_path):
     report = health.build([], ev, date(2026, 11, 16))
     assert "Reply time: median 1.7 s over 3 replies (text 1.6 s, image 5.2 s)" in report
     assert "database 0.4 s, WhatsApp 0.7 s" in report
+
+
+def test_photo_is_stored_while_the_ai_reads(world):
+    """18 Nov: storing the photo (Supabase) ran BEFORE the AI read it, so its time was added to every bill."""
+    import time
+    onboard(world)
+    save, read = world.bot.photos.save, world.reader.__call__
+
+    def slow_save(*a):
+        time.sleep(0.3)
+        return save(*a)
+
+    def slow_read(img):
+        time.sleep(0.3)
+        return read(img)
+
+    world.bot.photos.save = slow_save
+    world.bot.extractor = slow_read
+    world.reader.next = {"supplier_name": "Sharma Traders", "total_amount": 4580}
+    started = time.perf_counter()
+    world.run(photo())
+    took = time.perf_counter() - started
+    assert took < 0.5, took                                  # side by side, not 0.6 s one after the other
+    assert "Sharma Traders" in world.wa.last["body"]
+    assert list(world.bot.photos.root.rglob("*.jpg"))   # the photo was still stored

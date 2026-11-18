@@ -214,12 +214,14 @@ def _date_line(body):
     return next(line for line in body.splitlines() if M.FIELD_LABELS["bill_date"] in line)
 
 
-@pytest.mark.parametrize("choice, day", [(0, TODAY), (1, date(2026, 10, 27))])
-def test_bot_p5_date_one_tap_today_or_yesterday(world, choice, day):
+@pytest.mark.parametrize("choice, day, saved", [(0, date(2026, 4, 16), "bill_confirmed"), (1, TODAY, "bill_corrected")])
+def test_bot_p5_read_date_gets_its_own_button(world, choice, day, saved):
+    # 18 Nov phone test: the date it read was shown, but only 'aaj / kal / doosri' could be tapped
     s = _p5_bot(world, {"bill_date": "2026-04-16", "unsure_fields": ["bill_date"]})
     last = world.wa.last
-    assert s.calls == 0 and last["kind"] == "buttons" and "Bill ki date aaj ki hai?" in last["body"]
-    assert [t for _, t in last["buttons"]] == [M.BTN_DATE_TODAY, M.BTN_DATE_YDAY, M.BTN_DATE_OTHER]
+    assert s.calls == 0 and last["kind"] == "buttons" and "*16 Apr 2026*" in last["body"]
+    assert "6 mahine se purani" in last["body"]          # why it asks: the date is old, not unreadable
+    assert [t for _, t in last["buttons"]] == ["✅ 16 Apr 2026 sahi", M.BTN_DATE_TODAY_ALT, M.BTN_DATE_OTHER]
     assert "date_tap_asked" in world.events()
     world.run(tap(world.wa.button_ids()[choice]))
     summary = world.wa.last
@@ -227,7 +229,31 @@ def test_bot_p5_date_one_tap_today_or_yesterday(world, choice, day):
     assert M.nice_date(day) in _date_line(summary["body"]) and "⚠️" not in _date_line(summary["body"])
     assert "date_tapped" in world.events()
     world.run(tap(world.wa.button_ids()[0]))  # Sahi hai
-    assert "bill_corrected" in world.events()
+    assert saved in world.events()            # keeping the date it read is not a correction
+
+
+def test_bot_p5_unclear_recent_date_says_so(world):
+    _p5_bot(world, {"bill_date": "2026-10-20", "unsure_fields": ["bill_date"]})
+    assert "saaf nahi thi" in world.wa.last["body"] and "*20 Oct 2026*" in world.wa.last["body"]
+
+
+@pytest.mark.parametrize("choice, day", [(0, TODAY), (1, date(2026, 10, 27))])
+def test_bot_p5_no_date_read_one_tap_today_or_yesterday(world, choice, day):
+    s = _p5_bot(world, {"bill_date": None, "unsure_fields": ["bill_date"]})
+    last = world.wa.last
+    assert s.calls == 0 and "Bill ki date aaj ki hai?" in last["body"]
+    assert [t for _, t in last["buttons"]] == [M.BTN_DATE_TODAY, M.BTN_DATE_YDAY, M.BTN_DATE_OTHER]
+    world.run(tap(world.wa.button_ids()[choice]))
+    assert M.nice_date(day) in _date_line(world.wa.last["body"])
+
+
+def test_bot_p5_kal_can_be_typed_for_the_date(world):
+    from conftest import text
+    _p5_bot(world, {"unsure_fields": ["bill_date"]})
+    world.run(tap(world.wa.button_ids()[2]))           # Doosri date
+    assert "kal" in world.wa.last["body"]
+    world.run(text("kal"))
+    assert M.nice_date(date(2026, 10, 27)) in _date_line(world.wa.last["body"])
 
 
 def test_bot_p5_other_date_is_typed_once(world):
@@ -263,7 +289,7 @@ def test_bot_p5_missing_total_is_asked_before_the_date_tap(world):
     assert s.calls == 1  # no total = a money doubt -> Sonnet
     assert M.ASK_FIELD["total_amount"] in world.wa.last["body"]
     world.run(text("4769"))
-    assert "Bill ki date aaj ki hai?" in world.wa.last["body"]
+    assert "Kya ye date sahi hai?" in world.wa.last["body"]   # GOOD has a date: it is shown with its own button
 
 
 def test_ocr_runs_alongside_haiku_and_is_used_by_the_checks():

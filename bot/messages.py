@@ -149,7 +149,7 @@ def voice_not_understood(transcript: str) -> str:
             "Baaki jaanne ke liye: _kitna baaki hai_")
 
 # ---------------------------------------------------------------- bills
-READING = "📷 Bill mil gaya, padh raha hoon..."
+READING = "📷 Bill mil gaya, padh raha hoon... (10–20 second)"
 READING_PDF = "📄 PDF mil gaya, padh raha hoon..."
 DOC_NOT_SUPPORTED = "Ye file main nahi padh sakta. Supplier ke bill ki *photo* ya *PDF* bhejiye."
 PDF_FAILED = "Ye PDF khul nahi paayi (shayad password laga hai ya file kharab hai). Bill ki photo bhejiye."
@@ -163,7 +163,7 @@ BTN_FIELD = {"supplier_name": "Supplier ka naam", "total_amount": "Total amount"
 ASK_FIELD = {
     "supplier_name": "Supplier (jisne bill diya) ka naam likhiye:",
     "total_amount": "Bill ka *total amount* likhiye (jaise 4580):",
-    "bill_date": "Bill ki date likhiye (jaise 05/10/2026):",
+    "bill_date": "Bill ki date likhiye (jaise 05/10/2026, ya *aaj* / *kal*):",
 }
 MISSING_PREFIX = "Bill pe ye saaf nahi padh paaya. "
 BAD_VALUE = {
@@ -183,14 +183,24 @@ def own_bill_check(supplier: str) -> str:
             "Kya ye aapka apna bill hai (jo aapne customer ko diya)?")
 
 
-def date_tap(bill: dict) -> str:
-    """P5: the bill date is doubtful -> one tap instead of a Sonnet call (most bills are photographed the day they come)."""
+def date_tap(bill: dict, old: bool = False) -> str:
+    """P5: the bill date is doubtful -> one tap instead of a Sonnet call (most bills are photographed the day they come).
+    The read date is shown with its own 'sahi hai' button (18 Nov phone test: only aaj / kal / doosri was offered)."""
     read = bill.get("bill_date")
-    seen = f" (padhi: {nice_date(read)})" if read else ""
-    return f"Bill pe date pakki nahi padh paaya{seen}.\n\nBill ki date aaj ki hai?"
+    if not read:
+        return "📅 Bill pe date nahi padh paaya.\n\nBill ki date aaj ki hai?"
+    if old:
+        return (f"📅 Bill pe date *{nice_date(read)}* padhi. Ye 6 mahine se purani hai, isliye ek baar poochh raha "
+                "hoon.\n\nKya ye date sahi hai?")
+    return f"📅 Bill pe date saaf nahi thi. Maine *{nice_date(read)}* padhi.\n\nKya ye date sahi hai?"
+
+
+def btn_date_read(read) -> str:
+    return f"✅ {nice_date(read)} sahi"   # at most 18 characters (WhatsApp's limit is 20)
 
 
 BTN_DATE_TODAY = "Haan, aaj"
+BTN_DATE_TODAY_ALT = "Aaj ki hai"
 BTN_DATE_YDAY = "Kal"
 BTN_DATE_OTHER = "Doosri date"
 
@@ -359,6 +369,19 @@ def supplier_dues(s: dict, today: date) -> str:
         lines.append(f"🔧 Sudhaar: {'+' if adj > 0 else '−'}{inr(abs(adj))}")
     lines.append(f"_({span(s['first_day'], today)})_")
     return "\n".join(lines)
+
+
+DUES_DETAIL_HINT = "\n\nKisi supplier ke bill aur payment dekhne ke liye *Detail dekhein* dabaiye."
+LIST_BTN_DETAIL = "Detail dekhein"
+
+
+def dues_row_note(r: dict) -> str:
+    """One supplier's row in the 'Detail dekhein' list (at most 72 characters)."""
+    due = r["due"]
+    text = f"Advance {inr(-due)}" if due < 0 else f"Baaki {inr(due)}"
+    if r.get("next_due") and due > 0:
+        text += f" · due {nice_date(r['next_due'])}"
+    return text[:72]
 
 
 def dues_all(rows: list[dict]) -> str:

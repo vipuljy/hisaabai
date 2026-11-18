@@ -58,6 +58,7 @@ START_WORDS = {"start", "shuru", "shuru karo", "haan", "chalu"}
 YES_WORDS = {"haan", "ha", "yes", "ok", "shuru", "haan ji", "han", "haa", "shuru karo"}  # typed consent: whole message only
 MENU_WORDS = {"hi", "hii", "hello", "helo", "namaste", "namaskar", "menu", "help", "madad", "?", "ok"}
 HISAAB_WORDS = {"hisaab", "hisab", "hisaab dekhein", "hisaab dikhao", "hisab dikhao", "hisaab batao", "hisab batao"}
+DAY_WORDS = {"aaj": 0, "today": 0, "aaj ki": 0, "kal": 1, "kal ki": 1, "yesterday": 1, "parso": 2, "parson": 2}
 CANCEL_WORDS = {"cancel", "rehne do", "rehne de", "chhodo", "chodo", "chhod do", "mat karo", "kuch nahi", "nahi chahiye"}
 SUPPLIER_SLOT = {"dues_supplier", "paid_period", "bills_period", "last_payment", "set_reminder"}
 # 'mera data delete karo', 'DELETE', 'saara hisaab mita do' (whole message only: 'last entry delete karo' is a fix)
@@ -487,11 +488,8 @@ class Bot(EntryFlow):
 
     async def _read_image_bill(self, shop, image: bytes, props: dict):
         """A bill image (a photo, or a PDF page) -> the read policy (Haiku, checks, Sonnet if needed) -> a bill."""
-        try:
-            path = await asyncio.to_thread(self.photos.save, shop["shop_code"], image)
-        except Exception:  # storage down: still read the bill, just keep no copy
-            log.exception("photo storage failed")
-            path = None
+        # The photo is stored WHILE the AI reads it (it was one after the other: storage time was added to every bill)
+        save = asyncio.create_task(self._save_photo(shop, image))
         try:
             self.store.log_event(shop["id"], "ai_call", {"kind": "bill"})
             if hasattr(self.extractor, "read"):  # bot.policy.PolicyReader: Haiku, checks, Sonnet if a check fails
@@ -504,8 +502,10 @@ class Bot(EntryFlow):
         except Exception as err:  # network, model or image problems: never crash, tell the owner
             log.exception("bill reading failed")
             self.store.log_event(shop["id"], "extract_failed", {"error": type(err).__name__})
+            await save
             await self._text(shop, M.READ_FAILED)
             return
+        path = await save
         if ex.error:
             self.store.log_event(shop["id"], "extract_failed", {"error": ex.error[:80]})
         if not ex.fields.get("is_bill", True):
@@ -519,6 +519,13 @@ class Bot(EntryFlow):
             props | {"latency_ms": ex.latency_ms, "policy": extra.get("policy"),
                      "escalated": len(extra.get("calls", [])) > 1, "reasons": extra.get("reasons", []),
                      "asked": extra.get("asked", [])})
+
+    async def _save_photo(self, shop, image: bytes):
+        try:
+            return await asyncio.to_thread(self.photos.save, shop["shop_code"], image)
+        except Exception:  # storage down: still read the bill, just keep no copy
+            log.exception("photo storage failed")
+            return None
 
     async def _new_bill(self, shop, fields, meta, props):
         """Save the reading as a pending bill, then the usual steps: own-bill check, missing fields, confirm."""
@@ -603,9 +610,15 @@ class Bot(EntryFlow):
         if self._needs_date_tap(bill):
             self._set_state(shop, {})
             self.store.log_event(shop["id"], "date_tap_asked", {"bill_id": bill["id"]})
-            await self._buttons(shop, M.date_tap(bill), [(f"date_today:{bill['id']}", M.BTN_DATE_TODAY),
-                                                         (f"date_yday:{bill['id']}", M.BTN_DATE_YDAY),
-                                                         (f"date_other:{bill['id']}", M.BTN_DATE_OTHER)])
+            read = bill.get("bill_date")
+            if read:   # the date it read gets its own button; 'kal' can be typed after 'Doosri date'
+                buttons = [(f"date_ok:{bill['id']}", M.btn_date_read(read)),
+                           (f"date_today:{bill['id']}", M.BTN_DATE_TODAY_ALT),
+                           (f"date_other:{bill['id']}", M.BTN_DATE_OTHER)]
+            else:
+                buttons = [(f"date_today:{bill['id']}", M.BTN_DATE_TODAY), (f"date_yday:{bill['id']}", M.BTN_DATE_YDAY),
+                           (f"date_other:{bill['id']}", M.BTN_DATE_OTHER)]
+            await self._buttons(shop, M.date_tap(bill, old=P.date_is_old(read, self._today())), buttons)
             return
         if not bill.get("supplier_id") and not bill.get("new_supplier"):
             # supplier step: one clear match is used; look-alikes or 2+ matches -> a list; else '➕ naya supplier'
@@ -631,14 +644,17 @@ class Bot(EntryFlow):
         if bill is None:
             await self._text(shop, M.BILL_GONE)
             return
-        choice = {"date_today": "today", "date_yday": "yesterday", "date_other": "other"}[kind]
+        choice = {"date_ok": "as_read", "date_today": "today", "date_yday": "yesterday", "date_other": "other"}[kind]
         self.store.log_event(shop["id"], "date_tapped", {"bill_id": bill_id, "choice": choice,
                                                          "read": str(bill.get("bill_date") or "")})
         if choice == "other":
             self._set_state(shop, {"await": "field", "bill_id": bill_id, "field": "bill_date"})
             await self._text(shop, M.ASK_FIELD["bill_date"])
             return
-        day = self._today() - timedelta(days=1 if choice == "yesterday" else 0)
+        if choice == "as_read" and bill.get("bill_date"):   # the owner confirmed the date it read: not a correction
+            day = bill["bill_date"] if isinstance(bill["bill_date"], date) else date.fromisoformat(str(bill["bill_date"]))
+        else:
+            day = self._today() - timedelta(days=1 if choice == "yesterday" else 0)
         self.store.set_bill_field(bill_id, "bill_date", day.isoformat())
         await self._next_step(shop, self.store.get_bill(bill_id))
 
@@ -685,6 +701,9 @@ class Bot(EntryFlow):
             return
         field = state["field"]
         value = text.strip() if field == "supplier_name" else NORMALISERS[field](text)
+        if field in ("bill_date", "due_date") and value is None:   # 'aaj', 'kal', 'parso' (typed after 'Doosri date')
+            back = DAY_WORDS.get(U.to_roman(text).lower().strip(" .!") if U.has_devanagari(text) else text.lower().strip(" .!"))
+            value = (self._today() - timedelta(days=back)).isoformat() if back is not None else None
         if field == "supplier_name" and not norm_supplier(value):
             value = None
         if value is None:
@@ -756,7 +775,9 @@ class Bot(EntryFlow):
             else:
                 self.store.log_event(shop["id"], "own_bill_denied", {"bill_id": rest})
                 await self._next_step(shop, bill, missing_from_ai=True)
-        elif kind in ("date_today", "date_yday", "date_other"):
+        elif kind == "dsup":
+            await self._supplier_detail(shop, rest)
+        elif kind in ("date_ok", "date_today", "date_yday", "date_other"):
             await self._on_date_tap(shop, kind, rest)
         elif kind in ("pay_yes", "pay_no"):
             await self._on_pay_button(shop, kind == "pay_yes")
@@ -956,7 +977,27 @@ class Bot(EntryFlow):
                                                         "understood_by": understood_by, "source": source})
         if (shop.get("state") or {}).get("await") == "q":
             self._set_state(shop, {})
-        await self._text(shop, M.dues_all(rows) if rows else M.NO_DUES)
+        if not rows:
+            await self._text(shop, M.NO_DUES)
+            return
+        body = M.dues_all(rows) + M.DUES_DETAIL_HINT
+        if len(body) > 1024:   # a WhatsApp list's text is at most 1024 characters: plain text, names can be typed
+            await self._text(shop, M.dues_all(rows))
+            return
+        # 18 Nov phone test: one tap for any supplier's detail (it was only reachable by typing the name)
+        await self._list(shop, body, M.LIST_BTN_DETAIL,
+                         [(f"dsup:{r['supplier_id']}", r["supplier"][:24], M.dues_row_note(r)) for r in rows[:10]])
+
+    async def _supplier_detail(self, shop, supplier_id):
+        """A tap on a supplier in the 'kitna baaki' list = the question 'is supplier ka kitna baaki' (its detail)."""
+        if self._supplier_by_id(shop, supplier_id) is None:
+            await self._send_dues(shop, "menu", "tap")
+            return
+        st = {"await": "q", "intent": "dues_supplier", "by": "menu", "source": "tap", "supplier_id": supplier_id,
+              "supplier_set": True, "period": None, "pstart": None, "pend": None, "remind_on": None, "note": None}
+        self.store.log_event(shop["id"], "question_asked", {"intent": "dues_supplier", "source": "tap",
+                                                            "understood_by": "menu", "unclear": []})
+        await self._finish_q(shop, st)
 
     # ------------------------------------------------------------ questions about the hisaab
     # Understanding: bot/questions.py (rules, optional Haiku classifier). Numbers: bot/answers.py (database only).
