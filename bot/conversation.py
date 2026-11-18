@@ -42,6 +42,7 @@ from bot import policy as P
 from bot import questions as Q
 from bot import read_pdf
 from bot import understand as U
+from bot import wa_templates as W
 from bot.voice import NoteTooLong, transcribe_note
 from bot.entry_flow import EntryFlow
 from bot.extract import NORMALISERS, norm_amount, norm_date, norm_supplier, same_supplier
@@ -255,6 +256,9 @@ class Bot(EntryFlow):
                 self.store.log_event(None, "slow_reply", split)
 
     async def _handle(self, msg: dict) -> None:
+        if msg.get("type") == "button":   # a quick-reply tap on a template (reminder, Sunday summary)
+            label = (msg.get("button") or {}).get("text", "")
+            msg = {**msg, "type": "text", "text": {"body": W.button_as_text(label)}}
         wa_id = msg.get("from", "")
         mtype = msg.get("type", "unknown")
         text = _clean_text(msg)

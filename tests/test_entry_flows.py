@@ -2,6 +2,7 @@
 future questions, fixes with history, proof photos, the AI fallback. Nothing may count before the owner's tap."""
 
 import asyncio
+import itertools
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -15,8 +16,13 @@ from bot.photos import LocalPhotos
 IST = timezone(timedelta(hours=5, minutes=30))
 
 
+_picks = itertools.count(1)
+
+
 def pick(row_id, sender=OWNER):
-    return {"id": f"wamid.pick{row_id[-12:]}{datetime.now().timestamp()}", "from": sender, "type": "interactive",
+    # A counter, not the clock: on Windows two picks of the same row in one clock tick got the same message id, and
+    # the bot rightly ignores a repeated id (WhatsApp redelivery), so the second pick was lost (laptop, 18 Nov).
+    return {"id": f"wamid.pick{row_id[-12:]}.{next(_picks)}", "from": sender, "type": "interactive",
             "interactive": {"type": "list_reply", "list_reply": {"id": row_id, "title": "x"}}}
 
 
