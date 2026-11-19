@@ -74,7 +74,7 @@ def build_reader(policy: str | None = None):
     from bot.policy import DEFAULT_POLICY, PolicyReader
 
     policy = policy or DEFAULT_POLICY
-    prompt = os.getenv("BILL_PROMPT", "v2")
+    prompt = os.getenv("BILL_PROMPT", "v3")
     haiku = partial(extract_bill, model=os.getenv("BILL_MODEL", "claude-haiku-5-5"), prompt_version=prompt)
     if policy == "haiku":
         return haiku

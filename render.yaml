@@ -49,7 +49,7 @@ services:
       - key: ESCALATION_MODEL
         value: claude-sonnet-5-5
       - key: BILL_PROMPT
-        value: v2
+        value: v3   # v3 live from 19 Nov (docs/08: eval v2 vs v3)
       - key: QA_LLM
         value: "0"
       - key: VOICE_LLM

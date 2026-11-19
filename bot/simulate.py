@@ -69,7 +69,7 @@ def main():
     load_dotenv()
     real = bool(os.getenv("ANTHROPIC_API_KEY"))
     reader = partial(extract_bill, model=os.getenv("BILL_MODEL", "claude-haiku-5-5"),
-                     prompt_version=os.getenv("BILL_PROMPT", "v2")) if real else sample_reader
+                     prompt_version=os.getenv("BILL_PROMPT", "v3")) if real else sample_reader
     wa = PrintWA()
     bot = Bot(MemoryStore(), wa, reader, pilot_open=True, image_dir=Path("data/raw/bills_simulator"))
     print(__doc__)

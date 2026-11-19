@@ -22,7 +22,7 @@
 4. Once Supabase exists: `RUN_setup_database.bat` (tables + private photo bucket; safe to re-run).
 5. Double-click `RUN_STEP0_start_bot.bat` (starts the bot on port 8000).
 6. Double-click `RUN_STEP0b_public_link.bat` (gives Meta a public link to the bot, via ngrok).
-7. Later: `RUN_STEP1_eval.bat` (bill reading), `RUN_STEP2_review_mining.bat` (app reviews), `RUN_STEP3_voice_check.bat` (voice notes).
+7. Later: `RUN_STEP13_tricky_bills.bat` (safety test: 14 made-up photos built to fool the reader), `RUN_STEP1_eval.bat` (bill reading), `RUN_STEP2_review_mining.bat` (app reviews), `RUN_STEP3_voice_check.bat` (voice notes).
 8. Hosting and the daily job: `docs/11_setup_and_hosting.md`. Putting it on GitHub: `SETUP_github.bat`, then `SETUP_github_push.bat` once; later changes: `RUN_github_update.bat` (Render redeploys from GitHub).
 
 **Try it without WhatsApp:** double-click `RUN_chat_simulator.bat` and chat as a shop owner.
