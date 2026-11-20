@@ -22,6 +22,8 @@ Say it in your own words; the points matter, not the script.
    They tap **Sahi hai** themselves. Do not type for them: the pilot measures their use, not yours.
 4. **Show one answer:** they type *kitna baaki hai*.
 5. **Set expectations:** "3 din baad ek message karunga, 2 hafte baad 10 minute baat." No promises of features.
+   **And how to complain:** "Koi dikkat ho to isi chat mein *feedback* likh dijiye ya bol dijiye: seedha mujh tak
+   aata hai." (It is listed first in the evening health report.)
 6. Note in the tracker: date, segment, how many suppliers they buy from on credit (their estimate), and anything
    they said about trust.
 

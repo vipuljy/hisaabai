@@ -81,7 +81,8 @@ MENU = ("Aap ye bhej sakte hain:\n"
         "📷 Bill ki *photo*\n"
         "🎙️ *Voice note* ya ✍️ message: _Sharma ko 5000 diye_, _Gupta ka bill 4580_\n"
         "✏️ Galti sudharne: _8000 nahi 8500_, _last wala galat hai_\n"
-        "📒 Hisaab: _kitna baaki hai_")
+        "📒 Hisaab: _kitna baaki hai_\n"
+        "💬 Koi dikkat ya sujhav: _feedback_ likhiye")
 READY = ("✅ Taiyaar! Bas bhejiye:\n"
          "📷 Bill ki photo\n"
          "🎙️ Voice note: _Sharma ko 5000 diye_\n"
@@ -136,6 +137,24 @@ def delete_ask(counts: dict) -> str:
             "sab photo aur reminder")
     return f"⚠️ *Sab data hamesha ke liye mit jayega:*\n{what}.\n\nYe wapas nahi aayega. Pakka mitaun?"
 WELCOME_BACK = "Wapas swagat hai! 🙏\n\n" + MENU
+# Live feedback (bot/feedback_flow.py, 20 Nov)
+FB_ASK = ("🙏 Zaroor batayiye: kya dikkat aayi, ya kya behtar ho sakta hai?\n"
+          "Likh dijiye ya voice note bhejiye.")
+FB_THANKS = ("🙏 Shukriya! Aapki baat note kar li hai, hum ise jaldi dekhenge.\n\n"
+             "Apna kaam jaari rakhiye: bill ki photo, voice note ya message.")
+FB_OFFER = "Lagta hai kuch theek se nahi hua 🙏 Kya dikkat aayi, batayenge? Isse Vahi behtar banega."
+BTN_FB_START = "💬 Dikkat batayein"
+BTN_FB_NO = "Sab theek hai"
+FB_NO_REPLY = "👍 Theek hai. Kabhi bhi *feedback* likh ke bata sakte hain."
+FB_ROW_TITLE = "Dikkat / sujhav batayein"
+FB_ROW_DESC = "Koi dikkat ya idea: seedha hum tak"
+RATE_ASK = "Ek chhota sa sawaal 🙏 Vahi aapko kaisa lag raha hai?"
+BTN_RATE_GOOD = "😊 Achha"
+BTN_RATE_OK = "😐 Theek-thaak"
+BTN_RATE_BAD = "😟 Dikkat hai"
+RATE_THANKS_GOOD = "Shukriya! 🙏 Aise hi bhejte rahiye."
+RATE_THANKS_OK = "Shukriya! 🙏 Kuch behtar ho sakta hai to kabhi bhi *feedback* likh ke bata dijiye."
+
 OFF_TOPIC = "Maaf kijiye, main sirf bill aur supplier ke hisaab mein madad karta hoon.\n\n" + MENU
 VOICE_SOON = "Voice note jaldi samajhna shuru karunga. Abhi likh ke bhejiye, jaise: _Sharma Traders ko 5000 diye_"
 VOICE_FAILED = "Voice note sun nahi paaya. Dobara bhejiye, ya likh dijiye: _Sharma Traders ko 5000 diye_"

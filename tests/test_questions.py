@@ -262,7 +262,8 @@ def test_unknown_supplier_shows_the_supplier_list(ledger):
 
 def test_menu_walk_through_paid_period(ledger):
     ledger.run(text("hisaab"))
-    assert ledger.wa.last["kind"] == "list" and len(ledger.wa.last["rows"]) == 9
+    assert ledger.wa.last["kind"] == "list" and len(ledger.wa.last["rows"]) == 10   # 9 questions + feedback (20 Nov)
+    assert ledger.wa.list_ids()[-1] == "fb:start"
     ledger.run(pick("q:paid_period"))
     assert ledger.wa.list_ids()[0] == "qs:all"
     ledger.run(pick("qs:all"))

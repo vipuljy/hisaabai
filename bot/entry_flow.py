@@ -621,7 +621,8 @@ class EntryFlow:
         self._forget(shop)
         due = self._due_of(shop, sup["id"])
         await self._text(shop, M.refund_saved(sup["name"], due, why) if refund else M.pay_saved(sup["name"], due))
-        await self._maybe_ask_shop_name(shop)
+        if not await self._maybe_ask_shop_name(shop):
+            await self._maybe_ask_rating(shop)
 
     async def _cancel_payment(self, shop, pid, dup=False):
         if self._own_pending_payment(shop, pid) is None:
@@ -631,6 +632,8 @@ class EntryFlow:
         self.store.log_event(shop["id"], "payment_cancelled", {"payment_id": pid, "duplicate": dup})
         self._set_state(shop, {})
         await self._text(shop, M.DUP_CANCELLED if dup else M.PAY_CANCELLED)
+        if not dup:
+            await self._after_cancel(shop)
 
     async def _cancel_bill(self, shop, bill_id, dup=False):
         if self._own_pending_bill(shop, bill_id) is None:
@@ -640,6 +643,8 @@ class EntryFlow:
         self.store.log_event(shop["id"], "bill_cancelled", {"bill_id": bill_id, "duplicate": dup})
         self._set_state(shop, {})
         await self._text(shop, M.DUP_CANCELLED if dup else M.BILL_CANCELLED)
+        if not dup:
+            await self._after_cancel(shop)
 
     # ------------------------------------------------------------ old dues before a first payment
     async def _on_old_dues_button(self, shop, kind, pid):

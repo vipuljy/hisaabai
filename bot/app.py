@@ -124,7 +124,8 @@ def bot_from_env():
         log.warning("APP_SECRET not set: webhook signatures are NOT checked. Fine for a first test, not for the pilot.")
     return Bot(store, wa, extractor, pilot_open=os.getenv("PILOT_OPEN", "") == "1",
                transcriber=transcriber, entry_parser=entry_parser, photos=photos_from_env(), limits=limits,
-               question_llm=question_llm, timing_events=True)
+               question_llm=question_llm, timing_events=True,
+               feedback_prompts=True)
 
 
 def config_problem() -> str | None:

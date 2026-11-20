@@ -71,7 +71,8 @@ def main():
     reader = partial(extract_bill, model=os.getenv("BILL_MODEL", "claude-haiku-5-5"),
                      prompt_version=os.getenv("BILL_PROMPT", "v3")) if real else sample_reader
     wa = PrintWA()
-    bot = Bot(MemoryStore(), wa, reader, pilot_open=True, image_dir=Path("data/raw/bills_simulator"))
+    bot = Bot(MemoryStore(), wa, reader, pilot_open=True, image_dir=Path("data/raw/bills_simulator"),
+              feedback_prompts=True)
     print(__doc__)
     print("Bill reading:", "REAL (Claude)" if real else "SAMPLE (no API key in .env)")
     print("Start by typing: hi")

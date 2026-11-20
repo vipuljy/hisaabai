@@ -1,4 +1,5 @@
-"""The pilot health report: one page per day, from the events table (no message text, no phone numbers).
+"""The pilot health report: one page per day, from the events table (no phone numbers; the only message text is
+what an owner sends AS feedback, listed first, with long numbers masked).
 
   python -m bot.admin health          today and the last 7 days (IST), printed and saved to outputs/pilot/
   python -m bot.admin health 14       the last 14 days
@@ -11,8 +12,11 @@ uses the measured bill-reading cost (docs/13_cascade_spec.md, policy P5 without 
 
 from __future__ import annotations
 
+import re
 from collections import Counter, defaultdict
 from datetime import date, datetime, time, timedelta, timezone
+
+from bot.feedback_flow import mask_numbers
 
 IST = timezone(timedelta(hours=5, minutes=30))
 BILL_COST_RS = 0.205   # measured: average AI cost of reading one bill photo with the live policy (P5 without OCR)
@@ -64,8 +68,9 @@ def build(shops: list[dict], events: list[dict], today: date, days: int = 7) -> 
     timed = [e["props"] or {} for e in win if e["event"] == "reply_timed"]
 
     L = [f"# Pilot health, {today:%d %b %Y}", "",
-         f"Window: {start:%d %b} to {today:%d %b} ({days} days, IST). Pairs read *today / {days} days*.", "",
-         "## Shops",
+         f"Window: {start:%d %b} to {today:%d %b} ({days} days, IST). Pairs read *today / {days} days*.", ""]
+    L += feedback_lines(win, code, c)
+    L += ["## Shops",
          f"- {len(shops)} shops: {status.get('active', 0)} active, {status.get('invited', 0)} invited, "
          f"{status.get('opted_out', 0)} stopped",
          f"- Used the bot: {len(active_today)} today, {len(active_week)} in {days} days",
@@ -127,6 +132,29 @@ def build(shops: list[dict], events: list[dict], today: date, days: int = 7) -> 
         if quiet:
             L += ["", f"Active but silent for {days} days: {', '.join(quiet)} (a call or a nudge?)"]
     return "\n".join(L) + "\n"
+
+
+def feedback_lines(win: list[dict], code: dict, c) -> list[str]:
+    """First section: what owners said (bot/feedback_flow.py), newest first, then ratings and offers."""
+    said = sorted((e for e in win if e["event"] == "feedback_given"), key=lambda e: e["created_at"], reverse=True)
+    rated = Counter((e["props"] or {}).get("rating") for e in win if e["event"] == "rating_given")
+    started = Counter((e["props"] or {}).get("source") for e in win if e["event"] == "feedback_started")
+    out = ["## Feedback from owners (read this first)"]
+    for e in said[:20]:
+        p = e["props"] or {}
+        words = mask_numbers(re.sub(r"\s+", " ", str(p.get("text") or ""))).strip()[:300]
+        out.append(f"- {e['created_at'].astimezone(IST):%d %b %H:%M} · {code.get(str(e['shop_id']), '?')} · "
+                   f"{p.get('via', '?')} · {p.get('source', '?')}: \"{words}\"")
+    if len(said) > 20:
+        out.append(f"- ... and {len(said) - 20} more in this window")
+    if not said:
+        out.append("- No feedback in this window")
+    out += [f"- Ratings: {rated.get('good', 0)} achha, {rated.get('ok', 0)} theek-thaak, {rated.get('bad', 0)} dikkat "
+            f"(asked {c(win, 'rating_asked')})",
+            f"- The bot offered feedback {c(win, 'feedback_offered')} times (after cancels "
+            f"{c(win, 'feedback_offered', why='cancels')}, frustrated words {c(win, 'feedback_offered', why='words')}); "
+            f"taken {started.get('button', 0)}, declined {c(win, 'feedback_declined')}", ""]
+    return out
 
 
 def _median(xs):

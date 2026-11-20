@@ -45,6 +45,8 @@ from bot import understand as U
 from bot import wa_templates as W
 from bot.voice import NoteTooLong, transcribe_note
 from bot.entry_flow import EntryFlow
+from bot import feedback_flow as F
+from bot.feedback_flow import FeedbackFlow
 from bot.extract import NORMALISERS, norm_amount, norm_date, norm_supplier, same_supplier
 from bot.photos import LocalPhotos
 from bot.store import DB_TIMER
@@ -164,11 +166,15 @@ def _clean_text(msg: dict) -> str:
     return (msg.get("text") or {}).get("body", "").strip()
 
 
-class Bot(EntryFlow):
+class Bot(EntryFlow, FeedbackFlow):
     def __init__(self, store, wa, extractor, pilot_open: bool = False, image_dir: Path | str = "data/raw/bills",
                  transcriber=None, voice_parser=None, photos=None, limits: Limits | None = None,
-                 question_llm=None, today_fn=None, entry_parser=None, timing_events: bool = False):
+                 question_llm=None, today_fn=None, entry_parser=None, timing_events: bool = False,
+                 feedback_prompts: bool = False):
         self.store = store
+        # The bot ASKS for feedback (a rating after the 5th entry and on day 10; an offer after 2 cancels or
+        # frustrated words) only where this is on: the live bot and the simulator. Owner-started feedback always works.
+        self.feedback_prompts = feedback_prompts
         self.timing_events = timing_events  # the live bot logs a 'reply_timed' event per reply (the health report)
         self.wa = wa
         self.extractor = extractor  # callable(image_bytes) -> bot.extract.Extraction
@@ -226,7 +232,8 @@ class Bot(EntryFlow):
             self.store.log_event(shop["id"], "send_failed", {})
 
     async def _show_menu(self, shop, body=M.MENU):
-        await self._list(shop, body, M.MENU_BUTTON, [(f"q:{i}", t, d) for i, t, d in M.INTENT_ROWS])
+        await self._list(shop, body, M.MENU_BUTTON, [(f"q:{i}", t, d) for i, t, d in M.INTENT_ROWS]
+                         + [("fb:start", M.FB_ROW_TITLE, M.FB_ROW_DESC)])
 
     def _set_state(self, shop, state: dict):
         shop["state"] = state
@@ -317,6 +324,8 @@ class Bot(EntryFlow):
             await self._text(shop, M.OPTED_OUT)
             return
 
+        if mtype in ("image", "document") and shop["state"].get("await") == "feedback":
+            self._set_state(shop, {})   # a photo while feedback was awaited is still read as a bill
         if button:
             await self._on_button(shop, button)
         elif mtype == "image":
@@ -433,12 +442,12 @@ class Bot(EntryFlow):
         """After the first saved entry, once per shop: confirm the shop's name in one tap (or type it, or skip).
         Never at signup: asking for it before the owner has seen any value was a needless first hurdle."""
         if shop.get("shop_name"):
-            return
+            return False
         since = datetime.now(timezone.utc) - timedelta(minutes=30)
         if self.store.pending_count(shop["id"], since):
-            return   # other cards from the same message still wait for a tap: one question at a time
+            return False   # other cards from the same message still wait for a tap: one question at a time
         if not self._once(shop, "ask_shop_name"):
-            return
+            return False
         self.store.log_event(shop["id"], "shop_name_asked", {"suggested": self._suggested_name(shop) is not None})
         name = self._suggested_name(shop)
         if name:
@@ -446,6 +455,7 @@ class Bot(EntryFlow):
                                                                 ("sn_skip", M.BTN_SN_SKIP)])
         else:   # the typed answer is awaited only after a tap: an untapped question must not swallow the next entry
             await self._buttons(shop, M.ASK_SHOP_NAME, [("sn_edit", M.BTN_SN_TYPE), ("sn_skip", M.BTN_SN_SKIP)])
+        return True
 
     async def _on_shop_name_button(self, shop, kind):
         if shop.get("shop_name"):   # an old tap after the name was already saved
@@ -691,7 +701,8 @@ class Bot(EntryFlow):
         due = self._due_of(shop, supplier["id"])
         offer = M.PROOF_OFFER if bill.get("source") in ("voice", "typed") and bill.get("kind", "bill") == "bill" else ""
         await self._text(shop, M.bill_saved(supplier["name"], due) + offer)
-        await self._maybe_ask_shop_name(shop)   # the proof offer is a hint, not a question: no clash
+        if not await self._maybe_ask_shop_name(shop):   # the proof offer is a hint, not a question: no clash
+            await self._maybe_ask_rating(shop)
 
     async def _answer_field(self, shop, state, text):
         bill = self._own_pending_bill(shop, state["bill_id"])
@@ -777,6 +788,10 @@ class Bot(EntryFlow):
                 await self._next_step(shop, bill, missing_from_ai=True)
         elif kind == "dsup":
             await self._supplier_detail(shop, rest)
+        elif kind == "fb":
+            await self._on_feedback_button(shop, rest)
+        elif kind == "rate":
+            await self._on_rating(shop, rest)
         elif kind in ("date_ok", "date_today", "date_yday", "date_other"):
             await self._on_date_tap(shop, kind, rest)
         elif kind in ("pay_yes", "pay_no"):
@@ -793,6 +808,18 @@ class Bot(EntryFlow):
     # ------------------------------------------------------------ text
     async def _on_text(self, shop, text, lower):
         state = shop.get("state") or {}
+        if state.get("await") == "feedback":   # "kya dikkat aayi?" was asked: the words are kept as written
+            plain = U.to_roman(text) if U.has_devanagari(text) else text
+            plain_lower = plain.lower().strip(" .!")
+            if self._feedback_wait(shop) and plain_lower not in MENU_WORDS | START_WORDS | CANCEL_WORDS \
+                    and not self._looks_like_work(plain):
+                await self._save_feedback(shop, text, state.get("source") or "asked", "typed")
+                return
+            self._set_state(shop, {})
+            state = {}
+            if plain_lower in CANCEL_WORDS:
+                await self._text(shop, M.KEPT)
+                return
         if U.has_devanagari(text) and state.get("await") != "shop_name":   # a shop's own name stays as written
             text = U.to_roman(text)
             lower = text.lower().strip(" .!")
@@ -847,6 +874,13 @@ class Bot(EntryFlow):
         if lower in MENU_WORDS or lower in START_WORDS or lower in HISAAB_WORDS:
             await self._show_menu(shop)
             return
+        fb = F.feedback_text(text)
+        if fb is not None and not (re.search(r"\d", text) and self._looks_like_work(text)):
+            if fb:
+                await self._save_feedback(shop, fb, "keyword", "typed")
+            else:
+                await self._ask_feedback(shop, "keyword")
+            return
         if PROOF_RE.search(lower) and await self._proof_from_text(shop, text, suppliers):
             return
         if await self._entries_from_text(shop, text, suppliers, "text"):
@@ -862,7 +896,12 @@ class Bot(EntryFlow):
         if parsed.hisaab_like:
             await self._unclear_question(shop, text, parsed, suppliers, "text")
             return
-        self.store.log_event(shop["id"], "off_topic", {"type": "text"})
+        if F.FRUSTRATED_RE.search(lower):   # 'kaam nahi kar raha', 'bekar': ask what went wrong (once a day)
+            self.store.log_event(shop["id"], "off_topic", {"type": "text", "frustrated": True})
+            if await self._maybe_offer_feedback(shop, "words"):
+                return
+        else:
+            self.store.log_event(shop["id"], "off_topic", {"type": "text"})
         await self._show_menu(shop, M.OFF_TOPIC)
 
     def _leaves_value_state(self, state, text, lower) -> bool:
@@ -904,6 +943,19 @@ class Bot(EntryFlow):
         if not transcript:
             await self._text(shop, M.VOICE_FAILED)
             return
+        roman = U.to_roman(transcript) if U.has_devanagari(transcript) else transcript
+        if self._feedback_wait(shop) and not self._looks_like_work(roman):
+            await self._save_feedback(shop, transcript, shop["state"].get("source") or "asked", "voice")
+            return
+        fb = F.feedback_text(roman)
+        if fb is not None and not (re.search(r"\d", roman) and self._looks_like_work(roman)):
+            if fb:
+                await self._save_feedback(shop, transcript, "keyword", "voice")
+            else:
+                await self._ask_feedback(shop, "keyword")
+            return
+        if (shop.get("state") or {}).get("await") == "feedback":
+            self._set_state(shop, {})
         suppliers = self._suppliers(shop)
         heard = transcript                                    # shown to the owner as it was heard
         transcript, _ = U.clean(transcript, suppliers)        # Hindi script -> Roman, spelling slips -> the word
