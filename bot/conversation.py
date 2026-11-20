@@ -483,10 +483,11 @@ class Bot(EntryFlow, FeedbackFlow):
     async def _process_photo(self, shop, media_id):
         if not await self._ai_allowed(shop):
             return
-        await self._text(shop, M.READING)
         t_download = time.perf_counter()
+        download = asyncio.create_task(self.wa.download_media(media_id))   # starts while 'padh raha hoon' is sent
+        await self._text(shop, M.READING)
         try:
-            image = await self.wa.download_media(media_id)
+            image = await download
         except Exception as err:
             log.exception("photo download failed")
             self.store.log_event(shop["id"], "extract_failed", {"error": type(err).__name__})
@@ -820,6 +821,11 @@ class Bot(EntryFlow, FeedbackFlow):
         if state.get("await") == "feedback":   # "kya dikkat aayi?" was asked: the words are kept as written
             plain = U.to_roman(text) if U.has_devanagari(text) else text
             plain_lower = plain.lower().strip(" .!")
+            if self._feedback_wait(shop) and plain_lower in F.NOTHING_TO_SAY:   # "kuch nahi": no feedback after all
+                self._set_state(shop, {})
+                self.store.log_event(shop["id"], "feedback_declined", {"via": "typed"})
+                await self._text(shop, M.FB_NONE)
+                return
             if self._feedback_wait(shop) and plain_lower not in MENU_WORDS | START_WORDS | CANCEL_WORDS \
                     and not self._looks_like_work(plain):
                 await self._save_feedback(shop, text, state.get("source") or "asked", "typed")

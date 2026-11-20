@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640" width="640" height="640">
+  <rect width="640" height="640" fill="#0E6B5C"/>
+  <circle cx="320" cy="320" r="300" fill="#0F7A69"/>
+  <!-- pages behind the cover -->
+  <rect x="196" y="170" width="292" height="330" rx="26" fill="#FBEFD5"/>
+  <line x1="470" y1="200" x2="470" y2="470" stroke="#E2CFA6" stroke-width="6"/>
+  <!-- the red vahi-khata cover -->
+  <rect x="168" y="148" width="292" height="334" rx="28" fill="#C62828"/>
+  <rect x="168" y="148" width="46" height="334" rx="22" fill="#9E1F1F"/>
+  <rect x="200" y="148" width="14" height="334" fill="#9E1F1F"/>
+  <!-- the gold tie -->
+  <rect x="168" y="372" width="292" height="26" fill="#F2B544"/>
+  <circle cx="436" cy="385" r="22" fill="#F2B544"/>
+  <circle cx="436" cy="385" r="9" fill="#C98A1C"/>
+  <!-- a tick that is also a V: 'sahi hai' -->
+  <path d="M252 250 L312 312 L408 196" fill="none" stroke="#FFFFFF" stroke-width="40" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

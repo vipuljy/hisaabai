@@ -74,7 +74,7 @@ def test_signup_asks_nothing_and_the_ready_message_teaches_by_example(world):
     for line in ("Sharma ko 5000 diye", "Gupta ka bill 4580", "kitna baaki hai", "Sahi hai"):
         assert line in M.READY
     for welcome in (M.WELCOME, M.READY, M.MENU, M.NOT_IN_PILOT, M.OPTED_OUT, M.OPTED_OUT_HINT, M.OWN_BILL_SKIPPED):
-        assert "HisaabAI" not in welcome          # owners see one brand: Vahi
+        assert "HisaabAI" not in welcome          # owners see one brand: VahiBook
     assert M.BRAND in M.WELCOME_HEADER and "30 din" in M.WELCOME_FOOTER and "STOP" in M.WELCOME_FOOTER
     assert "Sahi hai" in M.WELCOME          # the trust promise: nothing is saved without the owner's tap
 

@@ -109,6 +109,7 @@ def build(shops: list[dict], events: list[dict], today: date, days: int = 7) -> 
          f"- Replies over 5 s: {len(slow)}" + (f" (slowest {max(slow) / 1000:.1f} s)" if slow else ""),
          f"- AI calls: {sum(ai.values())} ({', '.join(f'{k} {v}' for k, v in ai.most_common()) or 'none'}); "
          f"bill reading about Rs {(ai.get('bill', 0) * BILL_COST_RS):.0f} at the measured Rs {BILL_COST_RS} a bill",
+         whatsapp_line(win, timed),
          f"- Daily AI limit hit: {c(win, 'limit_hit')}", "",
          "## Broke",
          f"- Sends failed {c(win, 'send_failed')}; bill reading failed {c(win, 'extract_failed')}; voice failed "
@@ -164,6 +165,19 @@ def _median(xs):
         return 0
     m = len(xs) // 2
     return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
+
+
+TEMPLATE_RS = 0.115   # Meta's India utility template price, Oct 2026 list (docs/10_templates.md)
+
+
+def whatsapp_line(win: list[dict], timed: list[dict]) -> str:
+    """What Meta may bill: templates (always paid) and the bot's own messages (free up to about 1,000 a month)."""
+    sent = sum(1 for e in win if e["event"] in ("reminder_sent", "summary_sent", "owner_reminder_sent"))
+    capped = sum(1 for e in win if e["event"] == "template_cap_hit")
+    msgs = sum(int(t.get("wa_n") or 0) for t in timed)
+    return (f"- WhatsApp: {sent} templates sent (about Rs {sent * TEMPLATE_RS:.0f}; monthly cap in bot/jobs.py"
+            f"{', cap reached ' + str(capped) + ' times' if capped else ''}); {msgs} bot messages "
+            f"(free up to about 1,000 a month, then about Rs {TEMPLATE_RS} each)")
 
 
 def photo_line(photos: list[dict]) -> str:

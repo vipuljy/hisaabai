@@ -374,6 +374,16 @@ class MemoryStore:
                 + sum(1 for p in self.payments if p["shop_id"] == shop_id and p.get("status") == "pending_confirm"
                       and p["created_at"] >= since))
 
+    def pending_entries(self, shop_id, since) -> list[dict]:
+        """Open cards (not yet confirmed), newest first: {'t': 'b' | 'p', 'id', 'amount', 'created_at'}."""
+        rows = [{"t": "b", "id": b["id"], "amount": b["total_amount"], "created_at": b["created_at"]}
+                for b in self.bills.values() if b["shop_id"] == shop_id and b["status"] == "pending_confirm"
+                and b["created_at"] >= since]
+        rows += [{"t": "p", "id": p["id"], "amount": p["amount"], "created_at": p["created_at"]}
+                 for p in self.payments if p["shop_id"] == shop_id and p.get("status") == "pending_confirm"
+                 and p["created_at"] >= since]
+        return sorted(rows, key=lambda r: r["created_at"], reverse=True)
+
     # fixes after confirming: recent entries, edits, removal (every change goes to the edit history)
     def recent_entries(self, shop_id, since) -> list[dict]:
         rows = [{"type": "bill", "id": b["id"], "supplier_id": b["supplier_id"], "supplier": self._name(b["supplier_id"]),
@@ -886,6 +896,13 @@ class PgStore:
                       "and created_at >= %s) + (select count(*) from payments where shop_id = %s "
                       "and status = 'pending_confirm' and created_at >= %s) as n", (shop_id, since, shop_id, since))
         return int(r["n"])
+
+    def pending_entries(self, shop_id, since) -> list[dict]:
+        return self._all("select 'b' as t, id, total_amount as amount, created_at from bills where shop_id = %s "
+                         "and status = 'pending_confirm' and created_at >= %s union all "
+                         "select 'p' as t, id, amount, created_at from payments where shop_id = %s "
+                         "and status = 'pending_confirm' and created_at >= %s order by created_at desc",
+                         (shop_id, since, shop_id, since))
 
     # fixes after confirming: recent entries, edits, removal (every change goes to the edit history)
     def recent_entries(self, shop_id, since) -> list[dict]:

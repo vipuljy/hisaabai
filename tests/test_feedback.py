@@ -275,3 +275,16 @@ def test_health_report_lists_feedback_first():
     assert "9876543210" not in report
     assert "- Ratings: 1 achha, 0 theek-thaak, 0 dikkat (asked 1)" in report
     assert "offered feedback 1 times (after cancels 1, frustrated words 0); taken 1" in report
+
+
+# ---------------------------------------------------------------- 20 Nov evening: phone test round 2
+def test_kuch_nahi_is_not_feedback(world):
+    onboard(world)
+    world.run(text("feedback"))
+    world.run(text("Kuch nhi"))
+    assert world.wa.last["body"] == M.FB_NONE and not props(world, "feedback_given")
+
+
+def test_brand_is_vahibook():
+    assert M.BRAND == "VahiBook" and "VahiBook" in M.RATE_ASK and "VahiBook" in M.FB_OFFER
+    assert "VahiBook" in M.WELCOME_HEADER

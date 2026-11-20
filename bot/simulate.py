@@ -34,7 +34,7 @@ class PrintWA:
         self.photo = None
 
     def _show(self, body):
-        print("\n  Vahi > " + body.replace("\n", "\n         "))
+        print("\n  VahiBook > " + body.replace("\n", "\n         "))
 
     async def send_text(self, to, body):
         self._show(body)

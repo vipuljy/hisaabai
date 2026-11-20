@@ -31,7 +31,7 @@
 | Owner sends | Bot does |
 |---|---|
 | "feedback", "dikkat ...", "shikayat ...", or the menu row | Asks what went wrong (or saves the words at once), typed or spoken; listed first in the evening health report. The live bot also asks for a 3-tap rating after the 5th saved entry and from day 10, and offers [Dikkat batayein] after 2 cancelled cards or words like "kaam nahi kar raha" (once a day) |
-| First message | Welcome from **Vahi** (says an AI reads photos, photos deleted after 30 days) + consent buttons. Nothing is read before "Shuru karein". No questions at signup: the shop's own name is asked once, after the first saved entry (the WhatsApp profile name offered in one tap) |
+| First message | Welcome from **VahiBook** (says an AI reads photos, photos deleted after 30 days) + consent buttons. Nothing is read before "Shuru karein". No questions at signup: the shop's own name is asked once, after the first saved entry (the WhatsApp profile name offered in one tap) |
 | Bill photo | Reads supplier, total, date, invoice, due date; asks for anything missing; shows "Sahi hai / Badlo" |
 | "Badlo" | Lets the owner fix supplier, total or date; every fix is recorded for the eval |
 | "Sharma Traders ka bill aaya 8000 ka, 15 din ka udhaar" | A typed (or spoken) bill: card with supplier, total, date, credit days, due date, and the baaki before → after; a later photo of it is read and offered as its proof (never a second bill) |

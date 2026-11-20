@@ -821,6 +821,8 @@ class EntryFlow:
     # ------------------------------------------------------------ fixing saved entries
     async def _start_fix(self, shop, fix: "E.Fix", source: str, heard: str | None = None):
         await self._say_heard(shop, heard)
+        if await self._fix_open_card(shop, fix, source):
+            return
         recent = self._recent(shop)
         cands = recent
         ids = {str(fix.supplier["id"])} if fix.supplier else {str(c["id"]) for c in fix.candidates}
@@ -855,6 +857,25 @@ class EntryFlow:
         else:
             rows = [(f"fsel:u:{e['type'][0]}:{e['id']}", *M.entry_row(e)) for e in cands[:10]]
         await self._list(shop, M.FIX_PICK, M.LIST_BTN_ENTRY, rows)
+
+    async def _fix_open_card(self, shop, fix: "E.Fix", source: str) -> bool:
+        """'30 nahi 300' while the card with 30 is still open (not yet Sahi hai): change THAT card and show it again.
+        20 Nov phone test: the bot answered 'pichhle 7 din mein 30 ki entry nahi', because only saved entries
+        were searched. Open cards of the last 30 minutes come first; a saved entry is never touched here."""
+        if fix.action != "edit" or fix.old_amount is None or fix.new_amount is None:
+            return False
+        since = datetime.now(timezone.utc) - timedelta(minutes=30)
+        hit = next((e for e in self.store.pending_entries(shop["id"], since)
+                    if e["amount"] is not None and int(e["amount"]) == int(fix.old_amount)), None)
+        if hit is None:
+            return False
+        if hit["t"] == "b":
+            self.store.set_bill_field(hit["id"], "total_amount", int(fix.new_amount))
+        else:
+            self.store.set_payment_fields(hit["id"], amount=int(fix.new_amount))
+        self.store.log_event(shop["id"], "fix_open_card", {"t": hit["t"], "source": source})
+        await self._show_card(shop, hit["t"], hit["id"])
+        return True
 
     def _older_matches(self, shop, fix, ids):
         """Saved entries older than the 7-day edit window that fit the fix (supplier, kind, old amount)."""

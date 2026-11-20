@@ -51,6 +51,9 @@ FRUSTRATED_RE = re.compile(
     rf"\bbahut\s+(?:der|time)|\b(?:time|samay)\s+(?:bahut\s+)?(?:jyada|zyada|jada|zada|bahut)|\bder\s+(?:lag|ho)|"
     rf"\bpareshaa?n", re.I)
 _LONG_NUMBER = re.compile(r"\d{7,}")
+# A reply to "kya dikkat aayi?" that means there is nothing to report (20 Nov: "Kuch nhi" was saved as feedback)
+NOTHING_TO_SAY = {"kuch nahi", "kuch nhi", "kuchh nahi", "kuch bhi nahi", "kuch nai", "nahi", "nhi", "no", "nothing",
+                  "kuch nahi hai", "kuch nhi h", "sab theek", "sab theek hai", "sab thik hai", "theek hai", "ok"}
 
 
 def feedback_text(text: str) -> str | None:

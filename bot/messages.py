@@ -51,7 +51,7 @@ FIELD_LABELS = {
 }
 
 # ---------------------------------------------------------------- onboarding
-BRAND = "Vahi"  # the name owners see (from vahi-khata, the traditional ledger). The project / repo is HisaabAI.
+BRAND = "VahiBook"  # the name owners see (20 Nov: Vahi -> VahiBook, from vahi-khata, the ledger book). Repo: HisaabAI.
 NOT_IN_PILOT = (f"Namaste 🙏 *{BRAND}* abhi kuch chuni hui dukaanon ke saath pilot mein hai. "
                 "Aapki dilchaspi ke liye shukriya.")
 # The first message a new number gets (whatever it sent: 'hi', a photo, a voice note). One screen: what it does in
@@ -142,13 +142,14 @@ FB_ASK = ("🙏 Zaroor batayiye: kya dikkat aayi, ya kya behtar ho sakta hai?\n"
           "Likh dijiye ya voice note bhejiye.")
 FB_THANKS = ("🙏 Shukriya! Aapki baat note kar li hai, hum ise jaldi dekhenge.\n\n"
              "Apna kaam jaari rakhiye: bill ki photo, voice note ya message.")
-FB_OFFER = "Lagta hai kuch theek se nahi hua 🙏 Kya dikkat aayi, batayenge? Isse Vahi behtar banega."
+FB_OFFER = f"Lagta hai kuch theek se nahi hua 🙏 Kya dikkat aayi, batayenge? Isse {BRAND} behtar banega."
 BTN_FB_START = "💬 Dikkat batayein"
 BTN_FB_NO = "Sab theek hai"
+FB_NONE = "👍 Theek hai, shukriya! Kabhi bhi *feedback* likh ke bata sakte hain."
 FB_NO_REPLY = "👍 Theek hai. Kabhi bhi *feedback* likh ke bata sakte hain."
 FB_ROW_TITLE = "Dikkat / sujhav batayein"
 FB_ROW_DESC = "Koi dikkat ya idea: seedha hum tak"
-RATE_ASK = "Ek chhota sa sawaal 🙏 Vahi aapko kaisa lag raha hai?"
+RATE_ASK = f"Ek chhota sa sawaal 🙏 {BRAND} aapko kaisa lag raha hai?"
 BTN_RATE_GOOD = "😊 Achha"
 BTN_RATE_OK = "😐 Theek-thaak"
 BTN_RATE_BAD = "😟 Dikkat hai"

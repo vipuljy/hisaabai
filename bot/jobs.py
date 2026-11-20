@@ -46,6 +46,30 @@ TEMPLATE_REMINDER = "due_reminder"
 TEMPLATE_SUMMARY = "weekly_summary"
 TEMPLATE_OWNER_REMINDER = "owner_reminder"
 PHOTO_KEEP_DAYS = 30
+# Spend guard (20 Nov): Meta charges each template (about Rs 0.115). At most this many go out per calendar month
+# (IST), whatever happens; 300 = about Rs 35. Change with TEMPLATE_MONTHLY_CAP; 0 sends none.
+TEMPLATE_MONTHLY_CAP = 300
+SENT_EVENTS = ("reminder_sent", "summary_sent", "owner_reminder_sent")
+
+
+class TemplateBudget:
+    """How many more templates may go out this month; logs 'template_cap_hit' once when the cap stops a send."""
+
+    def __init__(self, store, today: date, cap: int | None = None):
+        self.store = store
+        self.cap = int(os.getenv("TEMPLATE_MONTHLY_CAP", TEMPLATE_MONTHLY_CAP)) if cap is None else cap
+        month_start = datetime(today.year, today.month, 1, tzinfo=IST)
+        self.sent = sum(store.count_events(e, month_start) for e in SENT_EVENTS)
+        self.blocked = 0
+
+    def take(self) -> bool:
+        if self.sent >= self.cap:
+            if self.blocked == 0:
+                self.store.log_event(None, "template_cap_hit", {"cap": self.cap, "sent": self.sent})
+            self.blocked += 1
+            return False
+        self.sent += 1
+        return True
 
 
 def purge_old_photos(store, photos, now: datetime | None = None, keep_days: int = PHOTO_KEEP_DAYS,
@@ -83,11 +107,12 @@ def gets_nudges(shop) -> bool:
 
 async def run_daily(store, wa, today: date, dry_run: bool = False, language: str = "en") -> dict:
     counts = {"reminders": 0, "summaries": 0, "skipped_control": 0, "owner_reminders": 0}
+    budget = TemplateBudget(store, today)
     due_day = today + timedelta(days=REMINDER_DAYS_AHEAD)
     for shop in store.list_shops(status="active"):
         if shop.get("consent_at") is None:
             continue
-        counts["owner_reminders"] += await send_owner_reminders(store, wa, shop, today, dry_run, language)
+        counts["owner_reminders"] += await send_owner_reminders(store, wa, shop, today, dry_run, language, budget)
         if not gets_nudges(shop):
             counts["skipped_control"] += 1
             continue
@@ -99,6 +124,8 @@ async def run_daily(store, wa, today: date, dry_run: bool = False, language: str
             if due_now <= 0:
                 continue  # already paid off: no nagging
             params = [bill["supplier"], M.inr(bill["total_amount"]), M.nice_date(bill["due_date"]), M.inr(due_now)]
+            if not dry_run and not budget.take():
+                continue
             if not dry_run:
                 mid = await wa.send_template(shop["wa_id"], TEMPLATE_REMINDER, params, language)
                 store.record_message(shop["id"], "out", mid, "template", f"{TEMPLATE_REMINDER}: {params}")
@@ -113,6 +140,8 @@ async def run_daily(store, wa, today: date, dry_run: bool = False, language: str
             week = f"{M.nice_date(today - timedelta(days=6))} - {M.nice_date(today)}"
             params = [week, str(s["bills"]), M.inr(s["billed"]), M.inr(s["paid"]), M.inr(s["total_due"]),
                       f"{s['top_supplier']} ({M.inr(s['top_due'])})" if s["top_supplier"] else "koi nahi"]
+            if not dry_run and not budget.take():
+                continue
             if not dry_run:
                 mid = await wa.send_template(shop["wa_id"], TEMPLATE_SUMMARY, params, language)
                 store.record_message(shop["id"], "out", mid, "template", f"{TEMPLATE_SUMMARY}: {params}")
@@ -122,7 +151,8 @@ async def run_daily(store, wa, today: date, dry_run: bool = False, language: str
     return counts
 
 
-async def send_owner_reminders(store, wa, shop, today: date, dry_run: bool = False, language: str = "en") -> int:
+async def send_owner_reminders(store, wa, shop, today: date, dry_run: bool = False, language: str = "en",
+                               budget: TemplateBudget | None = None) -> int:
     """Reminders the owner set, due today or earlier and not yet sent. Each is sent once (sent_at)."""
     n = 0
     for r in store.reminders_due(shop["id"], today):
@@ -132,6 +162,8 @@ async def send_owner_reminders(store, wa, shop, today: date, dry_run: bool = Fal
         else:
             due = sum(d["due"] for d in dues)
         params = [r["text"], M.inr(due)]
+        if not dry_run and budget is not None and not budget.take():
+            continue   # stays pending: sent on a later day, or next month
         if not dry_run:
             mid = await wa.send_template(shop["wa_id"], TEMPLATE_OWNER_REMINDER, params, language)
             store.record_message(shop["id"], "out", mid, "template", f"{TEMPLATE_OWNER_REMINDER}: {params}")
