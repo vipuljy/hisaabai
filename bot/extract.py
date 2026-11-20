@@ -216,8 +216,11 @@ def prepare_image(image_bytes: bytes) -> tuple[bytes, str]:
 
     with IMAGE_DECODE_SLOTS:
         img = Image.open(io.BytesIO(image_bytes))
-        img = ImageOps.exif_transpose(img).convert("RGB")  # phone photos carry a rotation flag
+        # 20 Nov speed-up for the small shared CPU on Render: a JPEG is decoded straight at 1/2, 1/4 or 1/8 size
+        # (never below MAX_SIDE), and the rotation flag is applied AFTER shrinking, on far fewer pixels.
+        img.draft("RGB", (MAX_SIDE, MAX_SIDE))
         img.thumbnail((MAX_SIDE, MAX_SIDE))
+        img = ImageOps.exif_transpose(img).convert("RGB")  # phone photos carry a rotation flag
         buf = io.BytesIO()
         img.save(buf, format="JPEG", quality=88)
         del img

@@ -105,6 +105,7 @@ def build(shops: list[dict], events: list[dict], today: date, days: int = 7) -> 
          f"done {both('shop_data_deleted')}, kept {both('delete_declined')}", "",
          "## Speed and cost",
          speed_line(timed),
+         photo_line([e["props"] or {} for e in win if e["event"] == "photo_timed"]),
          f"- Replies over 5 s: {len(slow)}" + (f" (slowest {max(slow) / 1000:.1f} s)" if slow else ""),
          f"- AI calls: {sum(ai.values())} ({', '.join(f'{k} {v}' for k, v in ai.most_common()) or 'none'}); "
          f"bill reading about Rs {(ai.get('bill', 0) * BILL_COST_RS):.0f} at the measured Rs {BILL_COST_RS} a bill",
@@ -163,6 +164,21 @@ def _median(xs):
         return 0
     m = len(xs) // 2
     return xs[m] if len(xs) % 2 else (xs[m - 1] + xs[m]) / 2
+
+
+def photo_line(photos: list[dict]) -> str:
+    """'- Photos: 5, median download 1.2 s, AI reading 6.8 s; 2 re-read by Sonnet (median 11.0 s) ...'"""
+    if not photos:
+        return "- Photos: none timed yet (photo_timed events start 20 Nov)"
+    esc = [p for p in photos if p.get("escalated")]
+    plain = [p for p in photos if not p.get("escalated")]
+    down = [p["download_ms"] for p in photos if p.get("download_ms") is not None]
+    line = (f"- Photos: {len(photos)}, median download {(_median(down) or 0) / 1000:.1f} s, AI reading "
+            f"{_median([p.get('read_ms', 0) for p in photos]) / 1000:.1f} s; Haiku only "
+            f"{len(plain)} (median {(_median([p.get('read_ms', 0) for p in plain]) or 0) / 1000:.1f} s), "
+            f"re-read by Sonnet {len(esc)} (median {(_median([p.get('read_ms', 0) for p in esc]) or 0) / 1000:.1f} s); "
+            f"median size {_median([p.get('kb', 0) for p in photos]):.0f} KB")
+    return line
 
 
 def speed_line(timed: list[dict]) -> str:

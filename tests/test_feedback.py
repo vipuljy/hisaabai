@@ -184,8 +184,24 @@ def test_frustrated_words_get_an_offer(world):
     assert world.wa.last["body"] == M.FB_OFFER
     world.run(tap("fb:no"))
     assert world.wa.last["body"] == M.FB_NO_REPLY and "feedback_declined" in world.events()
-    world.run(text("bekar hai"))                               # already offered today: the usual menu
-    assert world.wa.last["kind"] == "list"
+    world.run(text("bekar hai"))                               # words ask for help: offered every time
+    assert world.wa.last["body"] == M.FB_OFFER
+    assert [p["why"] for p in props(world, "feedback_offered")] == ["words", "words"]
+
+
+def test_frustration_spelled_the_way_owners_type():
+    for said in ("ye kaam nhi kr rha", "kaam nahi kar raha", "kuch nhi ho rha", "samajh nahi aaya", "smjh nhi aaya",
+                 "bilkul bekaar", "bahut slow hai", "time jyada lagta h", "bahut der lagti hai", "chal nhi rha"):
+        assert F.FRUSTRATED_RE.search(said), said
+    for fine in ("Sharma ko 2000 diye", "kitna baaki hai", "kal aana", "naya bill"):
+        assert not F.FRUSTRATED_RE.search(fine), fine
+
+
+def test_owner_typed_frustration_gets_an_offer(world):
+    world.bot.feedback_prompts = True
+    onboard(world)
+    world.run(text("ye kaam nhi kr rha"))
+    assert world.wa.last["body"] == M.FB_OFFER
 
 
 def test_prompts_are_off_unless_switched_on(world):
@@ -236,6 +252,15 @@ def test_rating_from_day_ten(world):
 
 
 # ---------------------------------------------------------------- the health report
+def test_photo_steps_are_timed(world):
+    onboard(world)
+    bill(world)
+    t = props(world, "photo_timed")[0]
+    assert t["download_ms"] >= 0 and t["read_ms"] >= 0 and t["escalated"] is False and t["source"] == "photo"
+    line = health.photo_line([t, {"download_ms": 900, "read_ms": 12000, "escalated": True, "kb": 300}])
+    assert line.startswith("- Photos: 2, median download") and "re-read by Sonnet 1 (median 12.0 s)" in line
+
+
 def test_health_report_lists_feedback_first():
     now = datetime(2026, 11, 20, 13, 0, tzinfo=timezone.utc)
     ev = lambda name, p: {"shop_id": "1", "event": name, "props": p, "created_at": now}   # noqa: E731

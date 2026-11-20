@@ -26,6 +26,7 @@ Every AI call (bill photo, voice note) logs an "ai_call" event; the daily limits
 from __future__ import annotations
 
 import asyncio
+import time
 import contextvars
 import logging
 import re
@@ -483,6 +484,7 @@ class Bot(EntryFlow, FeedbackFlow):
         if not await self._ai_allowed(shop):
             return
         await self._text(shop, M.READING)
+        t_download = time.perf_counter()
         try:
             image = await self.wa.download_media(media_id)
         except Exception as err:
@@ -494,12 +496,14 @@ class Bot(EntryFlow, FeedbackFlow):
             self.store.log_event(shop["id"], "photo_too_big", {"mb": round(len(image) / 1048576, 1)})
             await self._text(shop, M.PHOTO_TOO_BIG)
             return
-        await self._read_image_bill(shop, image, {"source": "photo"})
+        await self._read_image_bill(shop, image, {"source": "photo"},
+                                    download_ms=int((time.perf_counter() - t_download) * 1000))
 
-    async def _read_image_bill(self, shop, image: bytes, props: dict):
+    async def _read_image_bill(self, shop, image: bytes, props: dict, download_ms: int | None = None):
         """A bill image (a photo, or a PDF page) -> the read policy (Haiku, checks, Sonnet if needed) -> a bill."""
         # The photo is stored WHILE the AI reads it (it was one after the other: storage time was added to every bill)
         save = asyncio.create_task(self._save_photo(shop, image))
+        t_read = time.perf_counter()
         try:
             self.store.log_event(shop["id"], "ai_call", {"kind": "bill"})
             if hasattr(self.extractor, "read"):  # bot.policy.PolicyReader: Haiku, checks, Sonnet if a check fails
@@ -516,6 +520,11 @@ class Bot(EntryFlow, FeedbackFlow):
             await self._text(shop, M.READ_FAILED)
             return
         path = await save
+        # Where a photo's wait goes (20 Nov: owners said "time jyada lagta h"): download, AI reading, Sonnet or not
+        self.store.log_event(shop["id"], "photo_timed", {
+            "download_ms": download_ms, "read_ms": int((time.perf_counter() - t_read) * 1000),
+            "escalated": len((ex.extra or {}).get("calls", [])) > 1, "kb": len(image) // 1024,
+            "source": props.get("source")})
         if ex.error:
             self.store.log_event(shop["id"], "extract_failed", {"error": ex.error[:80]})
         if not ex.fields.get("is_bill", True):
@@ -898,7 +907,7 @@ class Bot(EntryFlow, FeedbackFlow):
             return
         if F.FRUSTRATED_RE.search(lower):   # 'kaam nahi kar raha', 'bekar': ask what went wrong (once a day)
             self.store.log_event(shop["id"], "off_topic", {"type": "text", "frustrated": True})
-            if await self._maybe_offer_feedback(shop, "words"):
+            if await self._maybe_offer_feedback(shop, "words", daily_limit=False):
                 return
         else:
             self.store.log_event(shop["id"], "off_topic", {"type": "text"})

@@ -39,10 +39,17 @@ ASK_ONLY = {"", "hai", "h", "he", "dena hai", "deni hai", "dena h", "deni h", "b
             "karni hai", "likhna hai", "likhni hai", "hai ek", "hai mujhe", "dena", "batana", "please", "plz"}
 # Frustration the bot could not otherwise read ('galat' alone is also a fix command, so it counts only here, at the
 # very end, after the entries engine and the question rules found nothing)
+_NAHI = r"(?:nahi|nahin|nhi|nai|na)"
+_KAR = r"(?:kar|kr)"
+_RAHA = r"(?:raha|rha|rahi|rhi|rahe|rhe)"
+# Spelled the way owners type (20 Nov: "ye kaam nhi kr rha" was missed): nahi / nhi, kar / kr, raha / rha
 FRUSTRATED_RE = re.compile(
-    r"kaam (?:hi )?(?:nahi|nhi|nahin) kar|(?:chal|chl) (?:nahi|nhi|nahin) (?:raha|rha)|samajh (?:hi )?(?:nahi|nhi)|"
-    r"(?:nahi|nhi) samjh|samjha (?:nahi|nhi)|bekaa?r|bakwaa?s|faltu|not working|useless|galat|bahut (?:slow|der)|"
-    r"(?:pareshan|pareshaan)", re.I)
+    rf"\b(?:kaam|kam|work)\s+(?:hi\s+)?{_NAHI}\s+{_KAR}|\b(?:chal|chl)\s+(?:hi\s+)?{_NAHI}\s+{_RAHA}|"
+    rf"\b{_NAHI}\s+(?:chal|chl)\s+{_RAHA}|\bkuch\s+(?:bhi\s+)?{_NAHI}\s+ho\s+{_RAHA}|"
+    rf"\bs(?:a?ma?|m)jh?\w*\s+(?:hi\s+)?(?:me|mein|mai)?\s*{_NAHI}\b|\b{_NAHI}\s+s(?:a?ma?|m)jh?\w*|"
+    rf"\bbe+ka+r\b|\bbakwa+s\b|\bfaltu\b|\bkharab\b|not working|useless|\bgalat\b|\bslow\b|"
+    rf"\bbahut\s+(?:der|time)|\b(?:time|samay)\s+(?:bahut\s+)?(?:jyada|zyada|jada|zada|bahut)|\bder\s+(?:lag|ho)|"
+    rf"\bpareshaa?n", re.I)
 _LONG_NUMBER = re.compile(r"\d{7,}")
 
 
@@ -106,11 +113,12 @@ class FeedbackFlow:
             await self._text(shop, M.FB_NO_REPLY)
 
     # ------------------------------------------------------------ 2. the bot offers it
-    async def _maybe_offer_feedback(self, shop, why: str) -> bool:
-        """At most once a day per shop, and never over an open question. True if offered."""
+    async def _maybe_offer_feedback(self, shop, why: str, daily_limit: bool = True) -> bool:
+        """Never over an open question. After cancels: at most once a day (the owner said nothing). After frustrated
+        words: every time (the owner is asking for help). True if offered."""
         if not self.feedback_prompts or (shop.get("state") or {}).get("await"):
             return False
-        if not self._once(shop, f"fb_offer:{self._today().isoformat()}"):
+        if daily_limit and not self._once(shop, f"fb_offer:{self._today().isoformat()}"):
             return False
         self.store.log_event(shop["id"], "feedback_offered", {"why": why})
         await self._buttons(shop, M.FB_OFFER, [("fb:start", M.BTN_FB_START), ("fb:no", M.BTN_FB_NO)])
