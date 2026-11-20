@@ -3,11 +3,29 @@
 from __future__ import annotations
 
 import asyncio
+import contextvars
 import logging
 
 import httpx
 
 log = logging.getLogger("hisaabai")
+
+# Meta's error for the last failed send in THIS task (each incoming message is its own task, so shops never mix).
+# The bot logs it with the send_failed event; the health report prints the code and what it means (21 Nov).
+_LAST_ERROR: contextvars.ContextVar = contextvars.ContextVar("wa_last_error", default=None)
+
+
+def last_error() -> dict | None:
+    """{'code': Meta's error code or None, 'status': HTTP status} for the last failed send here, else None."""
+    return _LAST_ERROR.get()
+
+
+def _error_of(resp) -> dict:
+    try:
+        code = ((resp.json() or {}).get("error") or {}).get("code")
+    except Exception:  # noqa: BLE001  not JSON
+        code = None
+    return {"code": code if isinstance(code, int) else None, "status": resp.status_code}
 
 
 class WhatsAppClient:
@@ -39,7 +57,9 @@ class WhatsAppClient:
         resp = await self._http().post(url, json={"messaging_product": "whatsapp", **payload}, headers=self._auth)
         if resp.status_code >= 400:
             log.error("WhatsApp send failed (%s): %s", resp.status_code, resp.text[:500])
+            _LAST_ERROR.set(_error_of(resp))
             return None
+        _LAST_ERROR.set(None)
         return (resp.json().get("messages") or [{}])[0].get("id")
 
     async def typing(self, message_id: str) -> None:

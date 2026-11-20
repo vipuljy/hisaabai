@@ -68,3 +68,32 @@ By field (all 136): due date 96% -> 100% (both models), invoice number 97% -> 99
 Worse: Haiku's silent date errors 2 -> 3 bills; Sonnet's total 135 -> 134 right (flagged, not silent). The test set has
 almost no Hindi-script supplier names, so the change the phone test asked for is checked by the phone retest, not here.
 **Decision:** v3 live from 19 Nov (`BILL_PROMPT=v3` on Render; default in `bot/app.py`). v2 stays for comparison.
+
+## Speed test: how much the AI thinks (rule written 21 Nov, before the run)
+
+Why: the 20 Nov health report showed photo replies at a median 13.5 s, and an owner wrote "Time jyada lagta h". The
+AI reading took 6.1 s live against 2.8 s per bill in this eval, and Haiku writes about 408 thinking tokens per bill
+for a 91-token answer (`docs/13_cascade_spec.md`). Anthropic's **effort** setting asks the model to think less
+(`bot/ai_client.py`; Haiku 5.5 default `medium`, Sonnet 5.5 default `high`).
+
+Runs (`src/eval_config.json`), same prompt v3, same 136 bills; the default-effort runs are the 19 Nov cache, so they
+cost nothing again:
+
+| Run | Model | Effort |
+|---|---|---|
+| `haiku_v3` (baseline) | Haiku | default (medium) |
+| `haiku_v3_low` | Haiku | low |
+| `haiku_v3_off` | Haiku | off (no thinking) |
+| `sonnet_v3` (baseline) | Sonnet | default (high) |
+| `sonnet_v3_medium` | Sonnet | medium |
+
+**The rule (fixed before any result):** a lower effort is adopted only if, against its baseline,
+1. bills with all fields right drop by **at most 2 points**,
+2. bills with a **silent error do not go up**, and
+3. failed replies (bad JSON, cut off) do not go up.
+
+Among the passing levels, the fastest is set on Render (`BILL_EFFORT` for Haiku, `ESCALATION_EFFORT` for Sonnet), and
+the 14 tricky bills must still give 13 or more right at that level. Speed is compared on the model's own time and
+on thinking tokens per bill (the baseline's time is from 19 Nov, so tokens are the fair comparison).
+Run: `RUN_eval_speed.bat` (Haiku about Rs 10-15; tricky bills about Rs 5; Sonnet optional, about Rs 90).
+Result: (to be filled from the SPEED TEST lines).

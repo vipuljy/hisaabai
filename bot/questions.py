@@ -409,8 +409,8 @@ def llm_question_parser(text: str, supplier_names: list[str], today: date, clien
                         model: str = "claude-haiku-5-5") -> dict | None:
     """Haiku classifies only. Its output is checked against the fixed lists by from_llm()."""
     if client is None:
-        import anthropic
-        client = anthropic.Anthropic()
+        from bot import ai_client
+        client = ai_client.get()  # the shared client (bot/ai_client.py)
     prompt = LLM_PROMPT.format(today=today.isoformat(), suppliers=json.dumps(supplier_names[:50], ensure_ascii=False),
                                text=text[:300].replace('"', "'"))
     resp = client.messages.create(model=model, max_tokens=SMALL_CALL_MAX_TOKENS,

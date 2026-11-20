@@ -32,8 +32,23 @@ def _pct(a, b) -> str:
     return f"{round(100 * a / b)}%" if b else "-"
 
 
-def build(shops: list[dict], events: list[dict], today: date, days: int = 7) -> str:
-    """Markdown. `events` = everything since the start of the window (store.events_since)."""
+FREE_REPLIES_A_MONTH = 1000   # Meta, from 1 Oct 2026: service replies free up to about 1,000 a month per number (then
+                              # Rs 0.115 each). Without a payment method, replies past that may stop being delivered.
+
+
+def month_line(month_replies: int | None) -> str:
+    """'- Replies this month: 412 of about 1,000 free (Meta counts per number per month)'."""
+    if month_replies is None:
+        return ""
+    warn = (" **WARNING: near the free limit. Add a payment method, or replies may stop**"
+            if month_replies >= 0.8 * FREE_REPLIES_A_MONTH else "")
+    return (f"- Replies this month: {month_replies} of about {FREE_REPLIES_A_MONTH:,} free "
+            f"(Meta counts per number per calendar month){warn}")
+
+
+def build(shops: list[dict], events: list[dict], today: date, days: int = 7, month_replies: int | None = None) -> str:
+    """Markdown. `events` = everything since the start of the window (store.events_since). `month_replies` =
+    bot messages Meta accepted since the 1st of this month (store.replies_sent_since), for the free-limit line."""
     start = today - timedelta(days=days - 1)
     win = [e for e in events if start <= _day(e) <= today]
     now = [e for e in win if _day(e) == today]
@@ -110,10 +125,12 @@ def build(shops: list[dict], events: list[dict], today: date, days: int = 7) -> 
          f"- AI calls: {sum(ai.values())} ({', '.join(f'{k} {v}' for k, v in ai.most_common()) or 'none'}); "
          f"bill reading about Rs {(ai.get('bill', 0) * BILL_COST_RS):.0f} at the measured Rs {BILL_COST_RS} a bill",
          whatsapp_line(win, timed),
+         *([month_line(month_replies)] if month_replies is not None else []),
          f"- Daily AI limit hit: {c(win, 'limit_hit')}", "",
          "## Broke",
          f"- Sends failed {c(win, 'send_failed')}; bill reading failed {c(win, 'extract_failed')}; voice failed "
-         f"{c(win, 'voice_failed')}; PDFs refused {c(win, 'pdf_rejected')}", ""]
+         f"{c(win, 'voice_failed')}; PDFs refused {c(win, 'pdf_rejected')}",
+         failures_line(win), ""]
 
     per = defaultdict(Counter)
     last = {}
@@ -192,7 +209,48 @@ def photo_line(photos: list[dict]) -> str:
             f"{len(plain)} (median {(_median([p.get('read_ms', 0) for p in plain]) or 0) / 1000:.1f} s), "
             f"re-read by Sonnet {len(esc)} (median {(_median([p.get('read_ms', 0) for p in esc]) or 0) / 1000:.1f} s); "
             f"median size {_median([p.get('kb', 0) for p in photos]):.0f} KB")
+    # 21 Nov: split the AI reading into the AI service's own time and ours (client, image prep, checks)
+    split = [p for p in photos if p.get("api_ms") is not None and p.get("read_ms") is not None]
+    if split:
+        api = _median([p["api_ms"] for p in split])
+        ours = _median([max(0, p["read_ms"] - p["api_ms"]) for p in split])
+        think = [p["think_tok"] for p in split if p.get("think_tok") is not None]
+        efforts = Counter(p.get("effort") or "default" for p in split)
+        line += (f"\n- AI reading split ({len(split)} photos): AI service {api / 1000:.1f} s, our side {ours / 1000:.1f} s"
+                 + (f"; thinking {_median(think):.0f} tokens a photo" if think else "")
+                 + f"; effort {', '.join(f'{k} {v}' for k, v in efforts.most_common())}")
     return line
+
+
+# Meta error codes seen on WhatsApp sends, in plain words (https://developers.facebook.com/docs/whatsapp/cloud-api/support/error-codes)
+WA_ERRORS = {
+    131047: "24-hour window closed (only a template can be sent)",
+    131026: "could not be delivered (not on WhatsApp, old app, or blocked)",
+    131042: "payment problem on the WhatsApp account",
+    131049: "held back by Meta (too many business messages to this person)",
+    131056: "too many messages to one person too fast",
+    131030: "number not allowed (test mode)",
+    130429: "rate limit",
+    132000: "template variables do not match",
+    132001: "template missing or not approved in this language",
+    132015: "template paused (low quality)",
+    100: "invalid request (e.g. a text too long)",
+    190: "token expired or revoked",
+}
+
+
+def failures_line(win: list[dict]) -> str:
+    """'- WhatsApp refused 1 (131047: 24-hour window closed x1); accepted but not delivered 0'."""
+    def label(code):
+        if code is None:
+            return "no code (logged before 21 Nov, or Meta did not answer)"
+        return f"{code}: {WA_ERRORS.get(code, 'see Render logs')}"
+
+    def part(name):
+        codes = Counter((e["props"] or {}).get("code") for e in win if e["event"] == name)
+        n = sum(codes.values())
+        return f"{n} ({'; '.join(f'{label(c)} x{k}' for c, k in codes.most_common())})" if n else "0"
+    return f"- WhatsApp refused {part('send_failed')}; accepted but not delivered {part('delivery_failed')}"
 
 
 def speed_line(timed: list[dict]) -> str:

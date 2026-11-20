@@ -252,6 +252,8 @@ class PolicyReader:
         s.input_tokens += h.input_tokens
         s.output_tokens += h.output_tokens
         s.latency_ms += h.latency_ms
+        if s.thinking_tokens is not None or h.thinking_tokens is not None:
+            s.thinking_tokens = (s.thinking_tokens or 0) + (h.thinking_tokens or 0)
         s.extra = dict(s.extra or {}) | {"policy": self.policy, "calls": [h.model, s.model], "reasons": why,
                                          "asked": asked, "haiku_fields": h.fields,
                                          "ask_date": asked == ["bill_date"] and "money_first" in POLICIES[self.policy]}

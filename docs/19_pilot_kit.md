@@ -54,7 +54,9 @@ Ask in this order; write the answers in the tracker as said.
 | 10 | "Aapki baat bina naam ke case study mein likh sakta hoon?" | Consent to quote (no name, no number) |
 
 Rules: never argue with an answer; ask "aur?" once after each; write their words, not your summary. A polite yes is
-not a yes: for question 7, the strong signal is "abhi de doon?".
+not a yes: for question 7, the strong signal is "abhi de doon?". Question 7 is the Rs 99 test: write down weak yes /
+strong yes (pays now or asks to) and the highest price said yes to; the go / no-go rule is in `docs/09_experiment.md`
+(note of 21 Nov). If an owner pays, VahiBook runs for that shop for the paid month, or the money goes back the same day.
 
 ## 5. What goes in the case study
 - Minutes per bill before vs with VahiBook: the median of the shops, with the count (e.g. "8 shops").

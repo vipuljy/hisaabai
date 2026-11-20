@@ -33,7 +33,7 @@ from dotenv import load_dotenv
 from fastapi import BackgroundTasks, FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse, PlainTextResponse
 
-from bot import redact
+from bot import ai_client, redact
 
 load_dotenv()
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -75,10 +75,13 @@ def build_reader(policy: str | None = None):
 
     policy = policy or DEFAULT_POLICY
     prompt = os.getenv("BILL_PROMPT", "v3")
-    haiku = partial(extract_bill, model=os.getenv("BILL_MODEL", "claude-haiku-5-5"), prompt_version=prompt)
+    # Effort per step (bot/ai_client.py): empty = the model's default. Changed only after RUN_eval_speed.bat
+    haiku = partial(extract_bill, model=os.getenv("BILL_MODEL", "claude-haiku-5-5"), prompt_version=prompt,
+                    effort=ai_client.check_effort(os.getenv("BILL_EFFORT")))
     if policy == "haiku":
         return haiku
-    sonnet = partial(extract_bill, model=os.getenv("ESCALATION_MODEL", "claude-sonnet-5-5"), prompt_version=prompt)
+    sonnet = partial(extract_bill, model=os.getenv("ESCALATION_MODEL", "claude-sonnet-5-5"), prompt_version=prompt,
+                     effort=ai_client.check_effort(os.getenv("ESCALATION_EFFORT")))
     from bot.policy import OCR_RULES, POLICIES
     ocr = None
     if os.getenv("OCR_CHECK", "1").strip() != "0" and POLICIES.get(policy, set()) & OCR_RULES:
@@ -122,6 +125,7 @@ def bot_from_env():
                     max_pdf_mb=_env_number("MAX_PDF_MB", 10.0, float))
     if not os.getenv("APP_SECRET", "").strip():
         log.warning("APP_SECRET not set: webhook signatures are NOT checked. Fine for a first test, not for the pilot.")
+    ai_client.warm_in_background()  # load the AI library now, not while the first owner waits (21 Nov)
     return Bot(store, wa, extractor, pilot_open=os.getenv("PILOT_OPEN", "") == "1",
                transcriber=transcriber, entry_parser=entry_parser, photos=photos_from_env(), limits=limits,
                question_llm=question_llm, timing_events=True,
@@ -226,9 +230,21 @@ def create_app(bot=None, verify_token: str | None = None, app_secret: str | None
                     # the WhatsApp profile name (often the shop's name): a suggestion only, the owner confirms it
                     message["_profile_name"] = names.get(message.get("from"), "")
                     background.add_task(_safe_handle, b, message)
+                # Meta accepts a message, then may fail to deliver it later (payment problem, number not on
+                # WhatsApp...): only these 'failed' statuses are kept, with Meta's error code (21 Nov)
+                for status in value.get("statuses", []) or []:
+                    if status.get("status") == "failed":
+                        background.add_task(_safe_status, b, status)
         return {"received": True}  # answer Meta fast; it retries if we are slow
 
     return app
+
+
+async def _safe_status(b, status):
+    try:
+        await b.on_delivery_failed(status)
+    except Exception:
+        log.exception("delivery status handling failed")
 
 
 async def _safe_handle(b, message):

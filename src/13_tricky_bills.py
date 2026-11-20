@@ -234,7 +234,7 @@ def main(argv=None) -> int:
         w = csv.DictWriter(fh, fieldnames=list(rows[0]))
         w.writeheader()
         w.writerows(rows)
-    print(f"\nTRICKY BILLS ({policy or 'default policy'}, prompt {os.getenv('BILL_PROMPT') or 'v3'}): {len(rows)} photos: {counts['right']} right, "
+    print(f"\nTRICKY BILLS ({policy or 'default policy'}, prompt {os.getenv('BILL_PROMPT') or 'v3'}, effort {os.getenv('BILL_EFFORT') or 'default'}): {len(rows)} photos: {counts['right']} right, "
           f"{counts['flagged']} flagged for the owner, {counts['WRONG']} WRONG (a confident card that would mislead)")
     print(f"Details: {OUT / 'tricky_bills.csv'}")
     return 0

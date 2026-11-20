@@ -241,13 +241,17 @@ class Extraction:
     stop_reason: str | None = None          # "end_turn", "max_tokens" (= truncated) ...
     block_types: list = field(default_factory=list)  # e.g. ["thinking", "text"]
     thinking_tokens: int | None = None      # included in output_tokens (billed); None if not reported
+    effort: str | None = None               # the effort asked for (None = the model's default)
 
 
-def extract_bill(image_bytes: bytes, model: str, prompt_version: str = "v2", client=None) -> Extraction:
-    """Read one bill with a Claude vision model. `client` is an anthropic.Anthropic()."""
+def extract_bill(image_bytes: bytes, model: str, prompt_version: str = "v2", client=None,
+                 effort: str | None = None) -> Extraction:
+    """Read one bill with a Claude vision model. `client` is an anthropic.Anthropic() (default: the shared one in
+    bot/ai_client.py). `effort`: low / medium / high / off, or None for the model's default (bot/ai_client.py)."""
+    from bot import ai_client
+    body = ai_client.effort_body(effort)
     if client is None:
-        import anthropic
-        client = anthropic.Anthropic()  # reads ANTHROPIC_API_KEY
+        client = ai_client.get()  # one client, connections kept open (it used to be a new one per bill)
     data, media_type = prepare_image(image_bytes)
     started = time.perf_counter()
     resp = client.messages.create(
@@ -261,6 +265,7 @@ def extract_bill(image_bytes: bytes, model: str, prompt_version: str = "v2", cli
                 {"type": "text", "text": PROMPTS[prompt_version]},
             ],
         }],
+        **({"extra_body": body} if body else {}),
     )
     latency = int((time.perf_counter() - started) * 1000)
     text = "".join(getattr(b, "text", None) or "" for b in resp.content)  # thinking blocks have no text
@@ -268,7 +273,7 @@ def extract_bill(image_bytes: bytes, model: str, prompt_version: str = "v2", cli
                     input_tokens=resp.usage.input_tokens, output_tokens=resp.usage.output_tokens,
                     latency_ms=latency, stop_reason=getattr(resp, "stop_reason", None),
                     block_types=[getattr(b, "type", None) or "text" for b in resp.content],
-                    thinking_tokens=_usage_thinking_tokens(resp.usage))
+                    thinking_tokens=_usage_thinking_tokens(resp.usage), effort=ai_client.check_effort(effort))
     blank = {f: None for f in FIELDS} | {"is_bill": True, "unsure_fields": list(FIELDS)}
     if ex.stop_reason == "max_tokens":  # cut off: never trust a half reply, even if some JSON parsed
         ex.error, ex.fields = "truncated", blank

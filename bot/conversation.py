@@ -51,6 +51,7 @@ from bot.feedback_flow import FeedbackFlow
 from bot.extract import NORMALISERS, norm_amount, norm_date, norm_supplier, same_supplier
 from bot.photos import LocalPhotos
 from bot.store import DB_TIMER
+from bot.whatsapp import last_error as wa_last_error
 
 log = logging.getLogger("hisaabai")
 IST = timezone(timedelta(hours=5, minutes=30))
@@ -217,20 +218,35 @@ class Bot(EntryFlow, FeedbackFlow):
         mid = await self._timed_send(self.wa.send_text, shop["wa_id"], body)
         self.store.record_message(shop["id"], "out", mid, "text", body)
         if mid is None:
-            self.store.log_event(shop["id"], "send_failed", {})
+            self._send_failed(shop, "text")
 
     async def _buttons(self, shop, body, buttons, header=None, footer=None):
         extra = {k: v for k, v in (("header", header), ("footer", footer)) if v}
         mid = await self._timed_send(self.wa.send_buttons, shop["wa_id"], body, buttons, **extra)
         self.store.record_message(shop["id"], "out", mid, "interactive", body)
         if mid is None:
-            self.store.log_event(shop["id"], "send_failed", {})
+            self._send_failed(shop, "buttons")
 
     async def _list(self, shop, body, button, rows):
         mid = await self._timed_send(self.wa.send_list, shop["wa_id"], body, button, rows)
         self.store.record_message(shop["id"], "out", mid, "interactive", body)
         if mid is None:
-            self.store.log_event(shop["id"], "send_failed", {})
+            self._send_failed(shop, "list")
+
+    def _send_failed(self, shop, kind: str):
+        """Meta refused a reply: keep its error code, so the health report says why (21 Nov: '1 failed', no reason)."""
+        err = wa_last_error() or {}
+        self.store.log_event(shop["id"], "send_failed", {"kind": kind, "code": err.get("code"), "status": err.get("status")})
+
+    async def on_delivery_failed(self, status: dict):
+        """Meta accepted a message but could not deliver it (a 'failed' status webhook). Logged with the error code
+        only: never the number or the text."""
+        shop = self.store.get_shop_by_wa(str(status.get("recipient_id") or ""))
+        if shop is None:
+            return
+        errors = status.get("errors") or [{}]
+        code = errors[0].get("code") if isinstance(errors[0], dict) else None
+        self.store.log_event(shop["id"], "delivery_failed", {"code": code if isinstance(code, int) else None})
 
     async def _show_menu(self, shop, body=M.MENU):
         await self._list(shop, body, M.MENU_BUTTON, [(f"q:{i}", t, d) for i, t, d in M.INTENT_ROWS]
@@ -522,8 +538,10 @@ class Bot(EntryFlow, FeedbackFlow):
             return
         path = await save
         # Where a photo's wait goes (20 Nov: owners said "time jyada lagta h"): download, AI reading, Sonnet or not
+        # api_ms = time inside the AI service (Haiku + Sonnet); read_ms - api_ms = our side (client, image prep, checks)
         self.store.log_event(shop["id"], "photo_timed", {
             "download_ms": download_ms, "read_ms": int((time.perf_counter() - t_read) * 1000),
+            "api_ms": ex.latency_ms, "think_tok": ex.thinking_tokens, "effort": getattr(ex, "effort", None),
             "escalated": len((ex.extra or {}).get("calls", [])) > 1, "kb": len(image) // 1024,
             "source": props.get("source")})
         if ex.error:

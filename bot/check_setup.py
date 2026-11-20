@@ -283,6 +283,14 @@ class Checker:
             out.append(Result("WARN", "JOBS_TOKEN", "too short; use 24+ random characters"))
         else:
             out.append(Result("OK", "JOBS_TOKEN", "set"))
+        for key in ("BILL_EFFORT", "ESCALATION_EFFORT"):   # bot/ai_client.py; empty = the model's default
+            value = self.get(key)
+            if value:
+                from bot.ai_client import EFFORTS
+                if value.strip().lower() in EFFORTS:
+                    out.append(Result("OK", key, f"{value.strip().lower()} (set only after RUN_eval_speed.bat passed)"))
+                else:
+                    out.append(Result("FAIL", key, f"must be one of {', '.join(EFFORTS)} or empty"))
         if self.get("PILOT_OPEN") == "1":
             out.append(Result("WARN", "PILOT_OPEN", "=1: anyone who messages becomes a shop. Fine on the test "
                                                     "number; set it empty for the pilot."))

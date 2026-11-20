@@ -130,7 +130,7 @@ async def run_daily(store, wa, today: date, dry_run: bool = False, language: str
                 mid = await wa.send_template(shop["wa_id"], TEMPLATE_REMINDER, params, language)
                 store.record_message(shop["id"], "out", mid, "template", f"{TEMPLATE_REMINDER}: {params}")
                 store.log_event(shop["id"], "reminder_sent" if mid else "send_failed",
-                                {"bill_id": bill["id"], "template": TEMPLATE_REMINDER})
+                                {"bill_id": bill["id"], "template": TEMPLATE_REMINDER} | _why(mid))
             counts["reminders"] += 1
 
         if today.weekday() == 6:  # Sunday
@@ -146,9 +146,18 @@ async def run_daily(store, wa, today: date, dry_run: bool = False, language: str
                 mid = await wa.send_template(shop["wa_id"], TEMPLATE_SUMMARY, params, language)
                 store.record_message(shop["id"], "out", mid, "template", f"{TEMPLATE_SUMMARY}: {params}")
                 store.log_event(shop["id"], "summary_sent" if mid else "send_failed",
-                                {"week_end": today.isoformat(), "template": TEMPLATE_SUMMARY})
+                                {"week_end": today.isoformat(), "template": TEMPLATE_SUMMARY} | _why(mid))
             counts["summaries"] += 1
     return counts
+
+
+def _why(mid) -> dict:
+    """For a failed template send: Meta's error code (bot/whatsapp.py), so the health report says why."""
+    if mid:
+        return {}
+    from bot.whatsapp import last_error
+    err = last_error() or {}
+    return {"kind": "template", "code": err.get("code"), "status": err.get("status")}
 
 
 async def send_owner_reminders(store, wa, shop, today: date, dry_run: bool = False, language: str = "en",
@@ -172,7 +181,7 @@ async def send_owner_reminders(store, wa, shop, today: date, dry_run: bool = Fal
             store.log_event(shop["id"], "owner_reminder_sent" if mid else "send_failed",
                             {"reminder_id": r["id"], "template": TEMPLATE_OWNER_REMINDER,
                              "group": shop.get("experiment_group") or "unassigned",
-                             "days_late": (today - r["remind_on"]).days})
+                             "days_late": (today - r["remind_on"]).days} | _why(mid))
         n += 1
     return n
 

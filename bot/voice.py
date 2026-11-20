@@ -156,8 +156,8 @@ Rules: spoken numbers count ("paanch hazaar" = 5000, "dhai sau" = 250). If amoun
 
 def llm_payment_parser(transcript: str, client=None, model: str = "claude-haiku-5-5") -> tuple[int, str] | None:
     if client is None:
-        import anthropic
-        client = anthropic.Anthropic()
+        from bot import ai_client
+        client = ai_client.get()  # the shared client (bot/ai_client.py)
     resp = client.messages.create(model=model, max_tokens=SMALL_CALL_MAX_TOKENS,
                                   messages=[{"role": "user", "content": PAYMENT_PROMPT.format(transcript=transcript[:500])}])
     if getattr(resp, "stop_reason", None) == "max_tokens":
@@ -198,8 +198,8 @@ def llm_entry_parser(transcript: str, supplier_names: list[str], today, client=N
                      model: str = "claude-haiku-5-5") -> dict | None:
     """Classifies only. bot/entries.from_llm validates the answer; the owner confirms every card."""
     if client is None:
-        import anthropic
-        client = anthropic.Anthropic()
+        from bot import ai_client
+        client = ai_client.get()  # the shared client (bot/ai_client.py)
     prompt = ENTRY_PROMPT.format(transcript=transcript[:600].replace('"', "'"), today=str(today),
                                  suppliers=json.dumps(supplier_names[:50], ensure_ascii=False))
     resp = client.messages.create(model=model, max_tokens=SMALL_CALL_MAX_TOKENS,

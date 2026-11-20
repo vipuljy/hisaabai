@@ -477,6 +477,11 @@ class MemoryStore:
         """Every event since `since`, oldest first (the pilot health report)."""
         return [dict(e) for e in self.events if e["created_at"] >= since]
 
+    def replies_sent_since(self, since) -> int:
+        """Bot messages Meta accepted since `since`, templates not counted (Meta bills those apart)."""
+        return sum(1 for m in self.messages if m["direction"] == "out" and m["wa_message_id"]
+                   and m["type"] != "template" and m["created_at"] >= since)
+
     # pilot admin and scheduled jobs
     def list_shops(self, status=None):
         rows = [dict(s) for s in self.shops.values() if status is None or s["status"] == status]
@@ -995,6 +1000,11 @@ class PgStore:
         rows = self._all("select shop_id, event, props, created_at from events where created_at >= %s "
                          "order by created_at, id", (since,))
         return [r | {"shop_id": _as_text(r["shop_id"])} for r in rows]
+
+    def replies_sent_since(self, since) -> int:
+        """Bot messages Meta accepted since `since`, templates not counted (Meta bills those apart)."""
+        return self._one("select count(*) as n from messages where direction = 'out' and wa_message_id is not null "
+                         "and type <> 'template' and created_at >= %s", (since,))["n"]
 
     def count_events(self, event, since, shop_id=None) -> int:
         if shop_id is None:

@@ -50,7 +50,7 @@ def test_outputs_are_private_now():
     not even the router chart."""
     assert scan.check_file("outputs/eval/router_tree.png")
     assert scan.check_file("outputs/eval/voice_results.csv")
-    assert scan.check_file("deploy/brand/vahi_icon_1024.png") == []  # our own brand image is fine
+    assert scan.check_file("deploy/brand/vahibook_icon_512.png") == []  # our own brand image is fine
 
 
 def test_privacy_guard_finds_real_names_and_invoice_numbers_without_printing_them(tmp_path, monkeypatch, capsys):

@@ -13,8 +13,10 @@
   .sheet { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; width: 194mm; height: 281mm;
            margin: 0 auto; }
   .card { border: 1px dashed #9a9a9a; padding: 9mm 8mm; display: flex; flex-direction: column; gap: 3.2mm; }
-  .brand { display: flex; align-items: baseline; gap: 2.5mm; }
-  .brand b { font-size: 26pt; letter-spacing: 0.5px; }
+  .brand { display: flex; align-items: center; gap: 3mm; }
+  .brand img { width: 15mm; height: 15mm; flex: none; }   /* the same logo as the WhatsApp profile photo */
+  .brand div { display: flex; flex-direction: column; }
+  .brand b { font-size: 24pt; letter-spacing: 0.5px; line-height: 1.05; }
   .brand span { font-size: 10.5pt; color: #555; }
   .num { font-size: 11pt; border-bottom: 1px solid #1a1a1a; padding-bottom: 1.5mm; min-height: 9mm; display: flex;
          align-items: flex-end; }
@@ -31,7 +33,7 @@
 <div class="sheet">
   <!-- one card, repeated 4 times -->
   <section class="card">
-    <div class="brand"><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div>
+    <div class="brand"><img src="../deploy/brand/vahibook_icon_512.png" alt=""><div><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div></div>
     <div class="num">WhatsApp:</div>
     <h2>Bhejiye</h2>
     <ul>
@@ -51,7 +53,7 @@
       Madad (naam, number): ____________________</div>
   </section>
   <section class="card">
-    <div class="brand"><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div>
+    <div class="brand"><img src="../deploy/brand/vahibook_icon_512.png" alt=""><div><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div></div>
     <div class="num">WhatsApp:</div>
     <h2>Bhejiye</h2>
     <ul>
@@ -71,7 +73,7 @@
       Madad (naam, number): ____________________</div>
   </section>
   <section class="card">
-    <div class="brand"><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div>
+    <div class="brand"><img src="../deploy/brand/vahibook_icon_512.png" alt=""><div><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div></div>
     <div class="num">WhatsApp:</div>
     <h2>Bhejiye</h2>
     <ul>
@@ -91,7 +93,7 @@
       Madad (naam, number): ____________________</div>
   </section>
   <section class="card">
-    <div class="brand"><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div>
+    <div class="brand"><img src="../deploy/brand/vahibook_icon_512.png" alt=""><div><b>VahiBook</b><span>supplier ka hisaab, WhatsApp pe</span></div></div>
     <div class="num">WhatsApp:</div>
     <h2>Bhejiye</h2>
     <ul>

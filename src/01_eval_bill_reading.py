@@ -12,6 +12,7 @@ Usage (from the project root):
   python src/01_eval_bill_reading.py --limit 5      try 5 bills per run first
   python src/01_eval_bill_reading.py                full run (cached: re-running costs nothing)
   python src/01_eval_bill_reading.py --runs haiku_v2
+A run may set "effort" (low / medium / high / off): how much the model thinks first (bot/ai_client.py).
 """
 
 from __future__ import annotations
@@ -75,7 +76,8 @@ def main(argv=None, client=None, root: Path = ROOT) -> int:
     for run in runs:
         cache_dir = eval_dir / "runs" / run["name"]
         for i, label in enumerate(labels, start=1):
-            rec = evalkit.run_one(label, images_dir, cache_dir, run["model"], run["prompt"], client=client)
+            rec = evalkit.run_one(label, images_dir, cache_dir, run["model"], run["prompt"], client=client,
+                                  effort=run.get("effort"))
             records.append(rec | {"run": run["name"]})
             for s in evalkit.score_bill(label, rec["fields"]):
                 scored.append(s | {"run": run["name"], "bill_id": label["bill_id"], "bill_type": label["bill_type"]})

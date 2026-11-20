@@ -31,5 +31,24 @@ Owners can now set their own reminders ("Sharma ko Friday yaad dilana"). These a
   (old dues with no bill) and returns (goods sent back) change the dues but are not bills, so they never count toward
   the metric (`v_shop_weeks` and `v_funnel` filter on it; `src/02_experiment_readout.py` reads `v_shop_weeks`).
 
+## Note added 21 Nov 2026 (before the pilot; metric, test and assignment unchanged)
+**Willingness to pay: the Rs 99 test** (Vipul decided yes on 20 Nov). A second, descriptive outcome; the primary
+metric and its test above do not change.
+- **When and who:** the day-14 exit interview (`docs/19_pilot_kit.md`, question 7), every onboarded shop, both groups.
+- **Ask:** "Pilot ke baad VahiBook ₹99 mahina hoga. Agle mahine ke liye lenge?" Yes -> "₹199?" -> "₹299?", stop at the
+  first no. The highest yes is recorded.
+- **Strong yes:** the owner commits now: pays the first month by UPI on the spot, or asks to pay now ("abhi de
+  doon?"). A "haan, dekhenge" is a **weak yes**. If an owner pays, VahiBook runs for that shop for the paid month; if
+  it cannot, the money goes back the same day.
+- **Count:** all onboarded shops; a shop that stopped (STOP) or cannot be reached counts as no.
+
+| Result at Rs 99 | Decision |
+|---|---|
+| Strong yes from **30% or more** of shops (and at least 3 shops) | **Go:** plan a paid version at Rs 99 |
+| At least 1 strong yes but under 30%, or weak + strong yes from 50% or more | **Iterate:** fix the top answer to question 9, test the price again with new shops |
+| No strong yes, and weak + strong yes under 50% | **No-go at Rs 99:** reported plainly in the case study |
+
+Reported as counts with a Wilson 95% interval: with about 12-15 shops this is a direction, not proof.
+
 ## Sample size, stated honestly
 To detect 40% vs 60% active at alpha 0.05 and 80% power needs about **97 shops per group** (`bot.experiment.min_n_per_group`). The pilot has about 10 per group, so the result is reported as a **directional pilot signal with its interval**, plus the sample a conclusive test would need. It is not presented as proof.

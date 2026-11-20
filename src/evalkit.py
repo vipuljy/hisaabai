@@ -80,7 +80,8 @@ def score_bill(label: dict, fields: dict) -> list[dict]:
     return [score_field(f, label.get(f), fields.get(f), unsure) for f in FIELDS]
 
 
-def run_one(label: dict, images_dir: Path, cache_dir: Path, model: str, prompt: str, client=None) -> dict:
+def run_one(label: dict, images_dir: Path, cache_dir: Path, model: str, prompt: str, client=None,
+            effort: str | None = None) -> dict:
     """Read one bill, using the cached reply if this run already did it (no double paying).
     A cached reply WITH an error (truncated, bad JSON) is re-read once per run instead of being reused;
     the new reply replaces it in the cache (and keeps the previous error in "retried_after")."""
@@ -92,9 +93,9 @@ def run_one(label: dict, images_dir: Path, cache_dir: Path, model: str, prompt: 
             return cached
         previous = cached["error"]
     image_bytes = (images_dir / label["image_file"]).read_bytes()
-    ex = extract_bill(image_bytes, model=model, prompt_version=prompt, client=client)
+    ex = extract_bill(image_bytes, model=model, prompt_version=prompt, client=client, effort=effort)
     record = {
-        "bill_id": label["bill_id"], "model": model, "prompt": prompt,
+        "bill_id": label["bill_id"], "model": model, "prompt": prompt, "effort": effort,
         "fields": ex.fields, "raw_text": ex.raw_text, "error": ex.error,
         "input_tokens": ex.input_tokens, "output_tokens": ex.output_tokens, "latency_ms": ex.latency_ms,
         "stop_reason": ex.stop_reason, "block_types": ex.block_types, "thinking_tokens": ex.thinking_tokens,
@@ -153,13 +154,15 @@ def summarise(scored: list[dict], records: list[dict], runs: list[dict], prices:
             cost_usd = (in_tok * p["input_usd_per_mtok"] + out_tok * p["output_usd_per_mtok"]) / 1e6
         per_bill_inr = round(cost_usd / len(recs) * usd_to_inr, 3) if cost_usd is not None and usd_to_inr else None
         by_run.append({
-            "run": name, "model": model, "prompt": run_meta[name]["prompt"], "bills": n_bills,
+            "run": name, "model": model, "prompt": run_meta[name]["prompt"],
+            "effort": run_meta[name].get("effort") or "default", "bills": n_bills,
             "all_fields_right": _rate(all_right, n_bills),
             "total_amount_right": _rate(total_right, n_bills),
             "bills_with_silent_error": _rate(silent_bills, n_bills),
             "json_errors": sum(1 for r in recs if r.get("error")),
             "truncated": sum(1 for r in recs if r.get("error") == "truncated"),
             "avg_latency_ms": round(sum(r["latency_ms"] for r in recs) / len(recs)),
+            "median_latency_ms": sorted(r["latency_ms"] for r in recs)[len(recs) // 2],
             "avg_input_tokens": round(in_tok / len(recs)),
             "avg_output_tokens": round(out_tok / len(recs)),
             # thinking vs answer text per bill (only for replies that report thinking tokens)

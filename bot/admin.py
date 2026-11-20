@@ -123,7 +123,9 @@ def main(argv=None, store=None, out=print, photos=None) -> int:
         from bot import health
         days = max(1, min(int(args[0]) if args else 7, 60))
         today = datetime.now(health.IST).date()
-        report = health.build(store.list_shops(), store.events_since(health.window_start(today, days)), today, days)
+        month_start = datetime(today.year, today.month, 1, tzinfo=health.IST)
+        report = health.build(store.list_shops(), store.events_since(health.window_start(today, days)), today, days,
+                              month_replies=store.replies_sent_since(month_start))
         out(report)
         folder = Path("outputs") / "pilot"
         folder.mkdir(parents=True, exist_ok=True)
