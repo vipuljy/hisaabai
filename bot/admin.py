@@ -89,9 +89,12 @@ def main(argv=None, store=None, out=print, photos=None) -> int:
         return 0
 
     if cmd == "assign-groups":
-        todo = [s for s in store.list_shops() if s["status"] != "opted_out" and not s.get("experiment_group")]
+        # T-codes are numbers that joined while PILOT_OPEN=1 (Vipul's own test phone, friendly-test shops): they are
+        # not pilot shops and stay out of the experiment (23 Nov). Pilot shops are added with add-shop (S01, S02...).
+        todo = [s for s in store.list_shops() if s["status"] != "opted_out" and not s.get("experiment_group")
+                and not re.fullmatch(r"T\d+", s.get("shop_code") or "")]
         if not todo:
-            out("Every shop already has a group.")
+            out("Every pilot shop already has a group (test shops T01... never get one).")
             return 0
         groups = assign_groups(todo)
         for s in todo:

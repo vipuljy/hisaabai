@@ -6,8 +6,9 @@ that gives the two numbers the case study needs (time per bill, willingness to p
 `private/`). Leave the printed card `discovery/vahi_card.html` with every owner.
 
 ## 1. Before the visit (5 minutes, at home)
-- `python -m bot.admin add-shop S01 kirana 98xxxxxxxx` (the owner's WhatsApp number; it never leaves `.env` / the
-  database). `PILOT_OPEN` stays empty, so only added shops can use the bot.
+- Double-click `RUN_add_shop.bat`: shop code (S01, S02...), type (kirana / medical / hardware / other), the owner's
+  WhatsApp number (it goes only into the database), shop name if you know it. `PILOT_OPEN` stays empty, so only
+  added shops can use the bot. (Same as `python -m bot.admin add-shop S01 kirana 98xxxxxxxx`.)
 - Have the production number saved on your phone as "VahiBook" so you can share the contact.
 - One printed card per shop.
 
@@ -27,7 +28,11 @@ Say it in your own words; the points matter, not the script.
 6. Note in the tracker: date, segment, how many suppliers they buy from on credit (their estimate), and anything
    they said about trust.
 
-After all shops are in: `python -m bot.admin assign-groups` once (groups never change after this).
+After all shops are in: double-click `RUN_assign_groups.bat` once and type YES (groups never change after this;
+test shops T01... stay out). `RUN_list_shops.bat` shows every shop and its group, never a number.
+
+Owners may type *ok* / *haan* instead of tapping *Sahi hai*: with one card open that saves it (23 Nov), so you do
+not need to teach the button, only "card dekh ke *Sahi hai* bol dijiye ya daba dijiye".
 
 ## 3. Check-ins (from your own WhatsApp, not the bot)
 - **Day 3:** "Namaste ji, VahiBook kaisa chal raha hai? Koi dikkat ya koi cheez samajh nahi aayi?" Write the answer
@@ -35,7 +40,8 @@ After all shops are in: `python -m bot.admin assign-groups` once (groups never c
 - **Day 10:** same, plus fix the exit-interview time.
 - **Every morning:** `RUN_pilot_health.bat` (5 minutes). Watch: cards cancelled, fixes soon after a save (a wrong
   card), duplicate warnings kept as new, spelling fixes that look wrong, slow replies, shops silent for 3+ days.
-- **8 Nov kill rule:** fewer than 8 shops active → stop adding features; fix onboarding first (`docs/02_plan.md`).
+- **Day 7 rule:** fewer than 8 shops active one week after the last onboarding → stop adding features; fix
+  onboarding first (`docs/02_plan.md`).
 
 ## 4. Exit interview (day 14, 10 minutes, in person or a call)
 Ask in this order; write the answers in the tracker as said.

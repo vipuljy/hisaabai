@@ -61,10 +61,12 @@ WELCOME = ("Namaste 🙏 Main aapke *supplier ka hisaab* WhatsApp pe rakhta hoon
            "📷 *Bill ki photo* bhejiye: main padh lunga\n"
            "🎙️ *Boliye*: _Sharma ko 5000 diye_: main likh lunga\n"
            "📒 *Poochiye*: _kitna baaki hai_: turant jawab\n"
-           "⏰ Payment ki date pe *yaad dilaunga*\n\n"
+           "⏰ Kahiye toh *yaad bhi dilaunga*: _Sharma ko Friday yaad dilana_\n\n"
            "✅ Har entry pehle aapko dikhaunga. *Sahi hai* dabane par hi save hogi.\n"
            "🔒 Hisaab sirf aapka. Bill AI padhta hai, koi insaan nahi.")
-WELCOME_FOOTER = "🔒 Photo 30 din mein delete · STOP likh ke band"
+# 23 Nov: the welcome promised due-date reminders to everyone, but they go to the treatment group only; owner-asked
+# reminders work for every shop, so that is what it promises now. One lock line, not two.
+WELCOME_FOOTER = "Photo 30 din mein delete · STOP likh ke band"
 BTN_CONSENT_YES = "✅ Shuru karein"
 BTN_CONSENT_EXAMPLE = "👀 Example dekhein"
 BTN_CONSENT_NO = "Abhi nahi"
@@ -156,6 +158,10 @@ BTN_RATE_BAD = "😟 Dikkat hai"
 RATE_THANKS_GOOD = "Shukriya! 🙏 Aise hi bhejte rahiye."
 RATE_THANKS_OK = "Shukriya! 🙏 Kuch behtar ho sakta hai to kabhi bhi *feedback* likh ke bata dijiye."
 
+# 23 Nov: a typed 'ok' / 'haan' with several cards open; thanks and greetings (bot/conversation.py)
+TAP_THE_BUTTON = "👆 Kaunsi entry? Jo sahi hai, uske card ke neeche *Sahi hai* dabaiye."
+THANKS_REPLY = "🙏"
+GREET_REPLY = "Namaste 🙏 Bill ki photo bhejiye, ya poochiye: _kitna baaki hai_"
 OFF_TOPIC = "Maaf kijiye, main sirf bill aur supplier ke hisaab mein madad karta hoon.\n\n" + MENU
 VOICE_SOON = "Voice note jaldi samajhna shuru karunga. Abhi likh ke bhejiye, jaise: _Sharma Traders ko 5000 diye_"
 VOICE_FAILED = "Voice note sun nahi paaya. Dobara bhejiye, ya likh dijiye: _Sharma Traders ko 5000 diye_"

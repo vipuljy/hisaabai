@@ -60,7 +60,31 @@ REQUIRED = ["supplier_name", "total_amount"]
 STOP_WORDS = {"stop", "band", "band karo", "unsubscribe", "ruko"}
 START_WORDS = {"start", "shuru", "shuru karo", "haan", "chalu"}
 YES_WORDS = {"haan", "ha", "yes", "ok", "shuru", "haan ji", "han", "haa", "shuru karo"}  # typed consent: whole message only
-MENU_WORDS = {"hi", "hii", "hello", "helo", "namaste", "namaskar", "menu", "help", "madad", "?", "ok"}
+MENU_WORDS = {"hi", "hii", "hello", "helo", "namaste", "namaskar", "menu", "help", "madad", "?"}
+# 23 Nov review: owners answer a card by typing, not tapping ('ok', 'haan'), and say thanks after a save. With ONE
+# open card a yes-word saves it like the button; thanks and greetings get a short, warm reply (not "maaf kijiye").
+CARD_YES_WORDS = {"haan", "ha", "haa", "han", "haan ji", "ha ji", "han ji", "ji haan", "ji ha", "ji", "yes", "ok", "okay",
+                  "okk", "ok ji", "okay ji", "sahi", "sahi hai", "sahi h", "sahi he", "haan sahi hai", "ha sahi hai",
+                  "theek hai", "thik hai", "theek h", "thik h", "thik he", "done", "save", "save karo", "save kro",
+                  "save kar do", "kar do", "kardo", "👍", "✅", "👌"}
+THANKS_WORDS = {"shukriya", "sukriya", "shukria", "dhanyavad", "dhanyawad", "dhanyavaad", "thank you", "thankyou",
+                "thanks", "thanku", "thank u", "thnx", "thx", "tq", "ty", "🙏", "👍", "👌", "ok",
+                "okay", "okk", "ok ji", "achha", "acha", "accha", "achha ji", "theek hai", "thik hai", "ji", "nice",
+                "good", "badhiya", "badiya", "super", "very good", "thank you ji", "thanks ji", "shukriya ji"}
+GREET_WORDS = {"good morning", "gm", "good night", "gn", "good evening", "good afternoon", "kaise ho", "kaise hain",
+               "kaise hai", "kya haal", "kya haal hai", "kya hal hai", "kya hal", "ram ram", "ram ram ji",
+               "jai shree krishna", "jai shri krishna", "radhe radhe", "sat sri akal", "jai mata di", "salaam", "salam",
+               "assalamualaikum", "jai hind", "namaste ji", "namaskar ji", "pranam"}
+_SKIN = re.compile("[\U0001F3FB-\U0001F3FF\uFE0F]")
+
+
+def small_words(lower: str) -> str:
+    """'Ok 👍🏻!!' -> 'ok 👍' style key for the word sets above: no skin tones, no repeated marks, single spaces."""
+    t = _SKIN.sub("", lower)
+    t = re.sub(r"([!.?])\1+", r"\1", t).strip(" .!?,")
+    t = re.sub(r"\s+", " ", t)
+    words = re.sub("[\U0001F44D\U0001F44C\U0001F64F\u2705]+", " ", t).strip(" .!?,")   # 'ok 👍' -> 'ok'
+    return re.sub(r"\s+", " ", words) if words else re.sub(r"(.)\1+", r"\1", t.replace(" ", ""))   # '🙏🙏' -> '🙏'
 HISAAB_WORDS = {"hisaab", "hisab", "hisaab dekhein", "hisaab dikhao", "hisab dikhao", "hisaab batao", "hisab batao"}
 DAY_WORDS = {"aaj": 0, "today": 0, "aaj ki": 0, "kal": 1, "kal ki": 1, "yesterday": 1, "parso": 2, "parson": 2}
 CANCEL_WORDS = {"cancel", "rehne do", "rehne de", "chhodo", "chodo", "chhod do", "mat karo", "kuch nahi", "nahi chahiye"}
@@ -904,6 +928,13 @@ class Bot(EntryFlow, FeedbackFlow):
         if slips:
             lower = text.lower().strip(" .!")
             self.store.log_event(shop["id"], "typo_fixed", {"words": len(slips)})
+        small = small_words(lower)
+        if small in CARD_YES_WORDS and await self._typed_yes(shop, state):
+            return
+        if small in THANKS_WORDS or small in GREET_WORDS:
+            self.store.log_event(shop["id"], "small_talk", {"kind": "thanks" if small in THANKS_WORDS else "greeting"})
+            await self._text(shop, M.THANKS_REPLY if small in THANKS_WORDS else M.GREET_REPLY)
+            return
         if lower in MENU_WORDS or lower in START_WORDS or lower in HISAAB_WORDS:
             await self._show_menu(shop)
             return
@@ -936,6 +967,26 @@ class Bot(EntryFlow, FeedbackFlow):
         else:
             self.store.log_event(shop["id"], "off_topic", {"type": "text"})
         await self._show_menu(shop, M.OFF_TOPIC)
+
+    async def _typed_yes(self, shop, state) -> bool:
+        """'ok' / 'haan' typed under a card: with exactly one card open (last 30 minutes) and no question waiting, it
+        is saved as if 'Sahi hai' was tapped (the duplicate check still runs, so a duplicate is shown again, never
+        saved on a word). Several cards, or a question waiting: ask to tap the right button. False: no card open."""
+        since = datetime.now(timezone.utc) - timedelta(minutes=30)
+        cards = self.store.pending_entries(shop["id"], since)
+        if not cards:
+            return False
+        if len(cards) > 1 or state.get("await"):
+            self.store.log_event(shop["id"], "typed_yes", {"result": "ask_tap", "open": len(cards)})
+            await self._text(shop, M.TAP_THE_BUTTON)
+            return True
+        card = cards[0]
+        self.store.log_event(shop["id"], "typed_yes", {"result": "confirm", "t": card["t"]})
+        if card["t"] == "b":
+            await self._confirm_bill(shop, card["id"])
+        else:
+            await self._confirm_payment(shop, card["id"])
+        return True
 
     def _leaves_value_state(self, state, text, lower) -> bool:
         """While the bot waits for a typed value (a name, an amount, a date), the owner moved on only if: a menu /
