@@ -86,9 +86,45 @@ def test_first_day_tour_photo_voice_question(world):
     world.run(text("ok"))
     assert world.wa.last["body"] == M.TOUR_3
     world.run(text("kitna baaki hai"))
-    bodies = [m.get("body") for m in world.wa.sent[-3:]]
-    assert M.TOUR_DONE in bodies
+    assert "Practice khatam" in world.wa.last["body"]           # a real photo in the tour: keep or remove?
+    assert "Sharma Traders" in world.wa.last["body"]
+    world.run(tap("tk:del"))
+    bodies = "\n".join(str(m.get("body")) for m in world.wa.sent[-3:])
+    assert M.TOUR_DONE in bodies and M.REAL_START in bodies and "2 entry hata di" in bodies
+    assert "khaali" in bodies
     assert events(world, "tour_done") and events(world, "shop_name_asked")
+    world.run(text("kitna baaki hai"))
+    assert "Sharma" not in world.wa.last["body"]                 # the practice entries are gone
+
+
+def test_demo_practice_entries_clear_themselves(world):
+    world.bot.coach = True
+    onboard(world)
+    world.run(text("Demo ka bill 500"))
+    world.run(text("ok"))
+    assert world.wa.last["body"] == M.TOUR_2
+    world.run(text("Demo ko 200 diye"))
+    world.run(text("ok"))
+    assert world.wa.last["body"] == M.TOUR_3
+    world.run(text("kitna baaki hai"))
+    assert "300" in "\n".join(str(m.get("body")) for m in world.wa.sent[-3:])   # he sees 500 - 200 work
+    done = "\n".join(str(m.get("body")) for m in world.wa.sent[-3:])
+    assert "Practice khatam" not in done and M.REAL_START in done and "2 entry hata di" in done
+    assert events(world, "tour_practice_cleared")[0]["props"]["n"] == 2
+    world.run(text("kitna baaki hai"))
+    assert "Demo" not in world.wa.last["body"]
+
+
+def test_keep_means_the_tour_entries_stay(world):
+    world.bot.coach = True
+    onboard(world)
+    for t in ("Gupta ka bill 4580", "ok", "Gupta ko 1000 diye", "ok", "kitna baaki hai"):
+        world.run(text(t))
+    world.run(tap("tk:keep"))
+    end = "\n".join(str(m.get("body")) for m in world.wa.sent[-3:])
+    assert M.REAL_START in end and "2 entry aapke hisaab mein rakhi" in end and "khaali" not in end
+    world.run(text("kitna baaki hai"))
+    assert "3,580" in world.wa.last["body"]
 
 
 def test_ok_under_the_old_dues_question_does_not_save(world):
@@ -116,7 +152,7 @@ def test_tour_can_be_skipped_and_tips_start_after_it(world):
     onboard(world)
     assert M.TOUR_SKIP_HINT in world.wa.last["body"]
     world.run(text("baad mein"))
-    assert world.wa.last["body"] == M.TOUR_SKIPPED
+    assert world.wa.last["body"].startswith(M.TOUR_SKIPPED) and M.REAL_START in world.wa.last["body"]
     assert events(world, "tour_done")[0]["props"]["how"] == "skipped"
     world.run(text("Gupta ka bill 100"))
     world.run(text("ok"))
@@ -143,8 +179,9 @@ def test_question_first_then_saves_finishes_the_tour(world):
     world.run(text("kitna baaki hai"))                                      # step 3 before step 2
     world.run(text("Gupta ko 1000 diye"))
     world.run(text("ok"))
-    assert M.TOUR_DONE in [m.get("body") for m in world.wa.sent[-3:]]       # no step 3: he already asked
-    assert events(world, "tour_done")[0]["props"]["how"] == "any_order"
+    assert events(world, "tour_done")[0]["props"]["how"] == "any_order"     # no step 3: he already asked
+    world.run(tap("tk:keep"))
+    assert any(M.TOUR_DONE in str(m.get("body")) for m in world.wa.sent[-3:])
 
 
 def test_only_saves_never_leave_the_tour_hanging(world):
@@ -153,8 +190,9 @@ def test_only_saves_never_leave_the_tour_hanging(world):
     for amount in (100, 200, 300):
         world.run(text(f"Gupta ka bill {amount}"))
         world.run(text("ok"))
-    assert M.TOUR_DONE_NO_QUESTION in [m.get("body") for m in world.wa.sent[-3:]]
     assert events(world, "tour_done")[0]["props"]["how"] == "saved_instead"
+    world.run(tap("tk:del"))
+    assert any(M.TOUR_DONE_NO_QUESTION in str(m.get("body")) for m in world.wa.sent[-3:])
     assert events(world, "shop_name_asked")
 
 
@@ -256,3 +294,17 @@ def test_closed_pilot_still_turns_strangers_away(store):
     bot = Bot(store, wa, None, pilot_open=False)
     asyncio.run(bot.handle(text("hi", "919000000079")))                       # secret-scan: ignore
     assert wa.last["body"] == M.NOT_IN_PILOT and store.get_shop_by_wa("919000000079") is None  # secret-scan: ignore
+
+
+def test_demo_and_a_real_entry_together(world):
+    world.bot.coach = True
+    onboard(world)
+    for t in ("Demo ka bill 500", "ok", "Gupta se 440 ka maal aaya", "ok", "kitna baaki hai"):
+        world.run(text(t))
+    ask = world.wa.last["body"]
+    assert "Demo* wali 1 entry hata di" in ask and "Gupta: ₹440" in ask and "Demo:" not in ask
+    world.run(tap("tk:keep"))
+    end = "\n".join(str(m.get("body")) for m in world.wa.sent[-3:])
+    assert "Practice ki 1 entry hata di" in end and "1 entry aapke hisaab mein rakhi" in end and "khaali" not in end
+    world.run(text("kitna baaki hai"))
+    assert "440" in world.wa.last["body"] and "Demo" not in world.wa.last["body"]

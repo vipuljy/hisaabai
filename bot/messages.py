@@ -100,22 +100,52 @@ READY = ("✅ Taiyaar! Bas bhejiye:\n"
 # 24 Nov: each step on its own, so a lost owner can be shown the step he is on again
 # 24 Nov (night): "Step", not "kadam" (owners did not know the word); each step says in plain words what a bill and a
 # payment are and what happens to the baaki; steps 1 and 2 say a card comes and *Sahi hai* opens the next step.
+# 25 Nov: the tour is a PRACTICE ROUND. Examples use the supplier "Demo", whose entries are removed by themselves at
+# the end; anything else saved in the tour (a real bill photo) is kept or removed by one tap. Then a clear line:
+# from now on, what you send and confirm is saved for real.
+PRACTICE_SUPPLIER = "Demo"
 TOUR_STEP = {1: "*Step 1 / 3: Supplier ka bill* 🧾\n"
-                "Supplier se maal aaya? Uske bill ki *photo* bhejiye.\n"
-                "Bill paas nahi? Likh dijiye: _Gupta ka bill 4580_\n"
+                "Supplier se maal aata hai to bill aata hai. Practice ke liye likhiye: _Demo ka bill 500_\n"
+                "(Ya kisi asli bill ki *photo* bhejiye.)\n"
                 "👉 Card aayega: *Sahi hai* dabaiye, phir Step 2.",
              2: "*Step 2 / 3: Supplier ko payment* 💸\n"
-                "Supplier ko paisa diya? Mic 🎤 dabake *bol dijiye*: _Gupta ko 1000 diye_\n"
+                "Supplier ko paisa diya? Mic 🎤 dabake *bol dijiye*: _Demo ko 200 diye_\n"
                 "(Ya likh dijiye.) Uska baaki apne aap kam ho jayega.\n"
                 "👉 Card aayega: *Sahi hai* dabaiye, phir Step 3.",
              3: "*Step 3 / 3: Pura hisaab* 📒\n"
                 "Likhiye ya boliye: _kitna baaki hai_\n"
                 "Har supplier ko kitna dena hai, sab ek saath dikhega."}
 TOUR_SKIP_HINT = "_Abhi nahi? Likhiye: baad mein_"
-TOUR_1 = ("✅ Shuru karte hain! *3 chhote steps*, 2 minute mein sab samajh aa jayega.\n\n"
+TOUR_1 = ("✅ Shuru karte hain! 🧪 *Practice round*: 3 chhote steps, 2 minute.\n"
+          "_Practice ki entries end mein hat jayengi; asli hisaab uske baad shuru hoga._\n\n"
           + TOUR_STEP[1] + "\n\n" + TOUR_SKIP_HINT)
-TOUR_2 = "👏 Bahut badhiya! Step 1 ho gaya: ye entry aapke hisaab mein save hai.\n\n" + TOUR_STEP[2]
+TOUR_2 = "👏 Bahut badhiya! Step 1 ho gaya.\n\n" + TOUR_STEP[2]
 TOUR_3 = "👏 Shabaash! Ab sabse kaam ki cheez.\n\n" + TOUR_STEP[3]
+REAL_START = ("✅ *Ab se asli hisaab shuru.* Jo bhi bill ya payment bhejenge aur *Sahi hai* dabayenge, "
+              "wo aapke hisaab mein save hoga. Galti ho to: _last wala galat hai_")
+def practice_summary(removed: int, kept: int) -> str:
+    """The end of the tour, in one honest line: what was removed, what was kept."""
+    parts = []
+    if removed:
+        parts.append(f"🧹 Practice ki {removed} entry hata di.")
+    if kept:
+        parts.append(f"📌 {kept} entry aapke hisaab mein rakhi.")
+    elif removed:
+        parts.append("Aapka hisaab ab khaali hai: asli shuruaat yahin se.")
+    return " ".join(parts)
+
+
+def practice_keep_ask(lines: list[str], demo_removed: int = 0) -> str:
+    shown = "\n".join(f"• {x}" for x in lines[:5]) + ("\n• ..." if len(lines) > 5 else "")
+    head = "🧪 Practice khatam!"
+    if demo_removed:
+        head += f" *Demo* wali {demo_removed} entry hata di."
+    return (f"{head}\nTour mein ye entry bhi save hui:\n{shown}\n\n"
+            "Ye *asli* hain (rakhni hain) ya sirf *practice* thi (hata dein)?")
+
+
+BTN_PRACTICE_DEL = "🗑️ Hata do"
+BTN_PRACTICE_KEEP = "✅ Rakho, asli hai"
 TOUR_REMIND = "👋 Chaliye, wahin se aage badhte hain.\n\n{step}\n\n" + TOUR_SKIP_HINT
 TOUR_DONE = ("🎉 Bas! Aap taiyaar hain. Ab hisaab apne aap chalega.\n\n"
              "Kaam ki 3 baatein:\n"

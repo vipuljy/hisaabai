@@ -788,7 +788,8 @@ class Bot(EntryFlow, FeedbackFlow):
         self._set_state(shop, {})
         self._forget(shop)
         due = self._due_of(shop, supplier["id"])
-        offer = M.PROOF_OFFER if bill.get("source") in ("voice", "typed") and bill.get("kind", "bill") == "bill" else ""
+        offer = M.PROOF_OFFER if bill.get("source") in ("voice", "typed") and bill.get("kind", "bill") == "bill" \
+            and norm_supplier(supplier["name"]) != norm_supplier(M.PRACTICE_SUPPLIER) else ""   # no proof for practice
         await self._text(shop, M.bill_saved(supplier["name"], due) + offer + self._tip_line(shop))
         await self._after_save(shop)
 
@@ -886,6 +887,8 @@ class Bot(EntryFlow, FeedbackFlow):
             await self._on_pay_button(shop, kind == "pay_yes")
         elif kind in ("q", "qs", "qp", "qd", "qr"):
             await self._on_question_tap(shop, kind, rest)
+        elif kind == "tk":
+            await self._on_practice_button(shop, rest)
         elif kind in ("sn_yes", "sn_edit", "sn_skip"):
             await self._on_shop_name_button(shop, kind)
         elif kind in ("consent_yes", "consent_no", "consent_example"):
@@ -1026,11 +1029,56 @@ class Bot(EntryFlow, FeedbackFlow):
 
     async def _end_tour(self, shop, how: str, text: str, ask_name: bool = True):
         """Every way out of the tour logs the same 'tour_done' (v 1) with how it ended, so tips and the shop-name
-        question start again. how: finished / any_order / saved_instead / skipped."""
+        question start again. how: finished / any_order / saved_instead / skipped.
+        25 Nov: the tour is a practice round. Entries for the practice supplier "Demo" are removed by themselves;
+        anything else saved during the tour (a real bill photo) is kept or removed by one tap (kept if he never taps).
+        Then one clear line: from now on, what he confirms is saved for real."""
         self.store.log_event(shop["id"], "tour_done", {"v": 1, "how": how, "step": self._tour_step_now(shop)})
-        await self._text(shop, text)
+        entries = self._tour_entries(shop)
+        demo = [e for e in entries if norm_supplier(e.get("supplier") or "") == norm_supplier(M.PRACTICE_SUPPLIER)]
+        for e in demo:
+            self.store.delete_entry(shop["id"], e["type"], e["id"], "button")   # schema allows voice/typed/button/proof; the reason is in the tour_practice event
+        if demo:
+            self.store.log_event(shop["id"], "tour_practice_cleared", {"n": len(demo)})
+        other = [e for e in entries if e not in demo]
+        if other:
+            self.store.log_event(shop["id"], "tour_keep_asked", {"n": len(other)})
+            self._set_state(shop, {"await": "tour_keep", "text": text, "ask_name": ask_name, "cleared": len(demo)})
+            lines = [f"{e.get('supplier') or '?'}: {M.inr(e['amount'])}"
+                     + (" (payment)" if e["type"] == "payment" else "") for e in other]
+            await self._buttons(shop, M.practice_keep_ask(lines, len(demo)),
+                                [("tk:del", M.BTN_PRACTICE_DEL), ("tk:keep", M.BTN_PRACTICE_KEEP)])
+            return
+        await self._finish_tour_text(shop, text, len(demo), ask_name)
+
+    def _tour_entries(self, shop) -> list[dict]:
+        """Bills and payments confirmed since the owner tapped Shuru karein (the tour starts there)."""
+        since = shop.get("consent_at") or (datetime.now(timezone.utc) - timedelta(days=1))
+        if isinstance(since, str):
+            since = datetime.fromisoformat(since)
+        return self.store.recent_entries(shop["id"], since)
+
+    async def _finish_tour_text(self, shop, text: str, cleared: int, ask_name: bool):
+        summary = M.practice_summary(cleared, len(self._tour_entries(shop)))
+        parts = [text] + ([summary] if summary else []) + [M.REAL_START]
+        await self._text(shop, "\n\n".join(parts))
         if ask_name:
             await self._maybe_ask_shop_name(shop)
+
+    async def _on_practice_button(self, shop, choice: str):
+        state = shop.get("state") or {}
+        if state.get("await") != "tour_keep":
+            await self._text(shop, M.MENU)
+            return
+        self._set_state(shop, {})
+        removed = 0
+        if choice == "del":
+            for e in self._tour_entries(shop):
+                self.store.delete_entry(shop["id"], e["type"], e["id"], "button")   # schema allows voice/typed/button/proof; the reason is in the tour_practice event
+                removed += 1
+        self.store.log_event(shop["id"], "tour_practice_choice", {"choice": choice, "n": removed})
+        await self._finish_tour_text(shop, state.get("text") or M.TOUR_DONE,
+                                     int(state.get("cleared") or 0) + removed, bool(state.get("ask_name", True)))
 
     async def _tour_words(self, shop, state, small: str) -> bool:
         """During the tour: 'baad mein' ends it politely; 'hi' / 'menu' / a greeting shows the step he is on.
