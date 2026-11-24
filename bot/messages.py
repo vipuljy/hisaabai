@@ -98,15 +98,23 @@ READY = ("✅ Taiyaar! Bas bhejiye:\n"
 # 24 Nov: the first-day tour. After 'Shuru', the owner tries each way in once (photo, voice, a question), so no
 # shop stays on photos only without knowing the rest. Live bot and simulator only (Bot(coach=True)).
 # 24 Nov: each step on its own, so a lost owner can be shown the step he is on again
-TOUR_STEP = {1: "*Kadam 1 / 3:* 📷 Abhi ke kisi bill ki *photo* bhejiye.\n"
-                "_(Bill paas nahi? Likh dijiye: Gupta ka bill 4580)_",
-             2: "*Kadam 2 / 3:* 🎙️ Ab *bol ke* bataiye. Mic 🎤 dabake boliye: _Gupta ko 1000 diye_\n"
-                "_(Bolna nahi? Likh bhi sakte hain.)_",
-             3: "*Kadam 3 / 3:* 📒 Likhiye ya boliye: _kitna baaki hai_"}
+# 24 Nov (night): "Step", not "kadam" (owners did not know the word); each step says in plain words what a bill and a
+# payment are and what happens to the baaki; steps 1 and 2 say a card comes and *Sahi hai* opens the next step.
+TOUR_STEP = {1: "*Step 1 / 3: Supplier ka bill* 🧾\n"
+                "Supplier se maal aaya? Uske bill ki *photo* bhejiye.\n"
+                "Bill paas nahi? Likh dijiye: _Gupta ka bill 4580_\n"
+                "👉 Card aayega: *Sahi hai* dabaiye, phir Step 2.",
+             2: "*Step 2 / 3: Supplier ko payment* 💸\n"
+                "Supplier ko paisa diya? Mic 🎤 dabake *bol dijiye*: _Gupta ko 1000 diye_\n"
+                "(Ya likh dijiye.) Uska baaki apne aap kam ho jayega.\n"
+                "👉 Card aayega: *Sahi hai* dabaiye, phir Step 3.",
+             3: "*Step 3 / 3: Pura hisaab* 📒\n"
+                "Likhiye ya boliye: _kitna baaki hai_\n"
+                "Har supplier ko kitna dena hai, sab ek saath dikhega."}
 TOUR_SKIP_HINT = "_Abhi nahi? Likhiye: baad mein_"
-TOUR_1 = ("✅ Shuru karte hain! *3 chhote kadam*, 2 minute mein sab samajh aa jayega.\n\n"
+TOUR_1 = ("✅ Shuru karte hain! *3 chhote steps*, 2 minute mein sab samajh aa jayega.\n\n"
           + TOUR_STEP[1] + "\n\n" + TOUR_SKIP_HINT)
-TOUR_2 = "👏 Bahut badhiya! Pehla kadam ho gaya.\n\n" + TOUR_STEP[2]
+TOUR_2 = "👏 Bahut badhiya! Step 1 ho gaya: ye entry aapke hisaab mein save hai.\n\n" + TOUR_STEP[2]
 TOUR_3 = "👏 Shabaash! Ab sabse kaam ki cheez.\n\n" + TOUR_STEP[3]
 TOUR_REMIND = "👋 Chaliye, wahin se aage badhte hain.\n\n{step}\n\n" + TOUR_SKIP_HINT
 TOUR_DONE = ("🎉 Bas! Aap taiyaar hain. Ab hisaab apne aap chalega.\n\n"
