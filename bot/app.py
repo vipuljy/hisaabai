@@ -6,7 +6,7 @@ Settings come from .env (see .env.example):
   DATABASE_URL set   -> data in Postgres / Supabase
   DATABASE_URL empty -> data in memory (lost on restart; fine for the test number)
   SUPABASE_URL + SUPABASE_SERVICE_KEY set -> bill photos in a private Supabase bucket, else data/raw/bills/
-  PILOT_OPEN=1       -> any number that messages becomes a test shop (test number only)
+  PILOT_OPEN=1       -> open sign-up: any number that says hi becomes a shop with a W code (25 Nov)
   JOBS_TOKEN set     -> POST /jobs/daily (with header X-Jobs-Token) runs the daily jobs; a scheduler calls it
   REQUIRE_PERSISTENT_STORAGE=1 (render.yaml) -> /health says "down" (503) unless bills go to Postgres AND photos to
                        Supabase: Render wipes its disk on every restart, so a deploy without them must not go live

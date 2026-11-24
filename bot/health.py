@@ -177,11 +177,15 @@ FEATURES = (("Photo", lambda e: e["event"] == "bill_received" and (e["props"] or
 def cohort_line(shops: list[dict], active_week) -> str:
     """24 Nov: real pilot shops (S01...) and friendly users (F01... family and friends, T01... test phones) are counted
     apart: only S shops go into the case study's numbers and the experiment."""
-    real = [s for s in shops if re.fullmatch(r"S\d+", s.get("shop_code") or "")]
-    friendly = [s for s in shops if s not in real]
+    code = lambda s: s.get("shop_code") or ""   # noqa: E731
+    real = [s for s in shops if re.fullmatch(r"S\d+", code(s))]
+    walk = [s for s in shops if re.fullmatch(r"W\d+", code(s))]
+    friendly = [s for s in shops if s not in real and s not in walk]
     used = lambda group: sum(1 for s in group if str(s["id"]) in active_week)   # noqa: E731
     return (f"- **Real pilot shops (S codes): {len(real)}, {used(real)} used it in the window**; "
-            f"friendly users (F family / T test): {len(friendly)}, {used(friendly)} used it. Case study counts S only.")
+            f"self-signups (W, joined by saying hi): {len(walk)}, {used(walk)} used it; "
+            f"friendly users (F family / T test): {len(friendly)}, {used(friendly)} used it. "
+            "Case study: S shops, plus W shops only after you confirm each is a real shop.")
 
 
 def adoption_lines(win: list[dict], code: dict) -> list[str]:

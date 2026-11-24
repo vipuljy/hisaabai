@@ -383,7 +383,7 @@ def test_checker_happy_path(tmp_path):
     assert by["WhatsApp"] == "OK" and "ending 4321" in out
     assert by["Token type"] == "OK" and by["Anthropic"] == "OK" and by["Sarvam (voice)"] == "OK"
     assert by["Template due_reminder"] == "OK" and by["Template weekly_summary"] == "WARN"
-    assert by["Database"] == "SKIP" and by["Local bot"] == "SKIP" and by["PILOT_OPEN"] == "WARN"
+    assert by["Database"] == "SKIP" and by["Local bot"] == "SKIP" and by["PILOT_OPEN"] == "OK"
     assert by[".env file"] == "FAIL" and code == 1  # tmp_path has no .env
     for key in ("WHATSAPP_TOKEN", "APP_SECRET", "VERIFY_TOKEN", "ANTHROPIC_API_KEY", "SARVAM_API_KEY"):
         assert ENV[key] not in out

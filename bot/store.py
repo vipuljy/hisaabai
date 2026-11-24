@@ -125,11 +125,13 @@ class MemoryStore:
     def get_shop(self, shop_id):
         return dict(self.shops[shop_id]) if shop_id in self.shops else None
 
-    def create_shop(self, wa_id, shop_code=None, segment=None, status="invited", shop_name=None):
+    def create_shop(self, wa_id, shop_code=None, segment=None, status="invited", shop_name=None, prefix="T"):
         sid = str(uuid.uuid4())
-        # the next free T number (not the count: after a shop deletes its data, codes must not repeat)
-        used = [int(x["shop_code"][1:]) for x in self.shops.values() if re.fullmatch(r"T\d+", x["shop_code"] or "")]
-        code = shop_code or f"T{max(used, default=0) + 1:02d}"
+        # the next free number for the prefix (T test phone, W self-signup). Not the count: codes must not repeat
+        prefix = prefix if re.fullmatch(r"[A-Z]", prefix or "") else "T"
+        used = [int(x["shop_code"][1:]) for x in self.shops.values()
+                if re.fullmatch(prefix + r"\d+", x["shop_code"] or "")]
+        code = shop_code or f"{prefix}{max(used, default=0) + 1:02d}"
         self.shops[sid] = {"id": sid, "shop_code": code, "wa_id": wa_id, "segment": segment, "status": status,
                            "experiment_group": None, "consent_at": None, "onboarded_at": None,
                            "state": {}, "shop_name": shop_name, "eval_consent": False,
@@ -667,10 +669,12 @@ class PgStore:
     def get_shop(self, shop_id):
         return self._one("select * from shops where id = %s", (shop_id,))
 
-    def create_shop(self, wa_id, shop_code=None, segment=None, status="invited", shop_name=None):
+    def create_shop(self, wa_id, shop_code=None, segment=None, status="invited", shop_name=None, prefix="T"):
         if shop_code is None:
-            n = self._one("select coalesce(max(substring(shop_code from '^T([0-9]+)$')::int), 0) as n from shops")["n"]
-            shop_code = f"T{n + 1:02d}"
+            prefix = prefix if re.fullmatch(r"[A-Z]", prefix or "") else "T"   # one capital letter: safe in the SQL
+            n = self._one(f"select coalesce(max(substring(shop_code from '^{prefix}([0-9]+)$')::int), 0) as n "
+                          "from shops")["n"]
+            shop_code = f"{prefix}{n + 1:02d}"
         return self._one("insert into shops (wa_id, shop_code, segment, status, shop_name) "
                          "values (%s, %s, %s, %s, %s) returning *", (wa_id, shop_code, segment, status, shop_name))
 

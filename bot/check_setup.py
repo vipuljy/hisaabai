@@ -292,8 +292,8 @@ class Checker:
                 else:
                     out.append(Result("FAIL", key, f"must be one of {', '.join(EFFORTS)} or empty"))
         if self.get("PILOT_OPEN") == "1":
-            out.append(Result("WARN", "PILOT_OPEN", "=1: anyone who messages becomes a shop. Fine on the test "
-                                                    "number; set it empty for the pilot."))
+            out.append(Result("OK", "PILOT_OPEN", "=1: anyone who says hi can sign up (gets a W code, counted apart). "
+                                                  "Daily AI caps still apply. Empty = only shops added with add-shop."))
         if not (self.root / ".env").exists():
             out.append(Result("FAIL", ".env file", "missing. Copy .env.example to .env and fill it in."))
         return out

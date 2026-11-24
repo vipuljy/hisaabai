@@ -333,7 +333,10 @@ class Bot(EntryFlow, FeedbackFlow):
         shop = self.store.get_shop_by_wa(wa_id)
 
         if shop is None and self.pilot_open:
-            shop = self.store.create_shop(wa_id)
+            # 25 Nov: open sign-up. Anyone who says hi gets a W code (self-signup): counted apart from the shops Vipul
+            # recruited (S) and from test phones (T); they still see the welcome and must tap Shuru karein (consent).
+            shop = self.store.create_shop(wa_id, prefix="W")
+            self.store.log_event(shop["id"], "self_signup", {"from_suffix": wa_id[-4:]})
         if not self.store.record_message(shop["id"] if shop else None, "in", msg.get("id"), mtype, text or None, media_id):
             return  # duplicate delivery
         if shop is None:

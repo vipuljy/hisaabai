@@ -233,3 +233,26 @@ def test_family_shops_stay_out_of_the_split_and_the_headline(store, tmp_path):
     assert by_code["F01"] is None and {by_code["S01"], by_code["S02"]} == {"treatment", "control"}
     line = health.cohort_line(store.list_shops(), set())
     assert "Real pilot shops (S codes): 2" in line and "friendly users (F family / T test): 1" in line
+
+
+# ------------------------------------------------------------------ 7. open sign-up (25 Nov)
+def test_anyone_who_says_hi_can_start_with_a_w_code(world):
+    stranger = "919000000077"   # secret-scan: ignore (a fake number)
+    world.run(text("hi", stranger))
+    shop = world.store.get_shop_by_wa(stranger)
+    assert shop["shop_code"] == "W01" and world.wa.last["body"] != M.NOT_IN_PILOT
+    assert any(e["event"] == "self_signup" for e in events(world, "self_signup"))
+    world.run(text("hello", "919000000078"))                                  # secret-scan: ignore
+    assert world.store.get_shop_by_wa("919000000078")["shop_code"] == "W02"  # secret-scan: ignore
+    line = health.cohort_line(world.store.list_shops(), set())
+    assert "self-signups (W, joined by saying hi): 2" in line
+
+
+def test_closed_pilot_still_turns_strangers_away(store):
+    from conftest import FakeWA
+    from bot.conversation import Bot
+    import asyncio
+    wa = FakeWA()
+    bot = Bot(store, wa, None, pilot_open=False)
+    asyncio.run(bot.handle(text("hi", "919000000079")))                       # secret-scan: ignore
+    assert wa.last["body"] == M.NOT_IN_PILOT and store.get_shop_by_wa("919000000079") is None  # secret-scan: ignore

@@ -364,7 +364,7 @@ def test_pilot_health_report_counts_the_loop_and_the_guards(ready, tmp_path, mon
     report = health.build(w.store.list_shops(), w.store.events_since(health.window_start(today, 7)), today)
     assert "Used the bot: 1 today" in report and "duplicate 1" in report and "1 dropped" in report
     assert "spelling slips fixed: 1" in report and "1 asked, 0 added, 1 none" in report
-    assert "| T01 |" in report and "9198" not in report             # shop codes, never phone numbers
+    assert "| W01 |" in report and "9198" not in report             # shop codes, never phone numbers
     monkeypatch.chdir(tmp_path)
     out = []
     assert admin.main(["health", "3"], store=w.store, out=out.append, photos=object()) == 0

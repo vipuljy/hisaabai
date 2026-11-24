@@ -58,8 +58,8 @@ services:
         value: bill-photos
       - key: TEMPLATE_LANGUAGE
         value: en
-      - key: PILOT_OPEN
-        value: ""
+      - key: PILOT_OPEN   # 25 Nov: open sign-up (W codes); "" = only shops added with RUN_add_shop
+        value: "1"
       - key: AI_CALLS_PER_SHOP_PER_DAY
         value: "30"
       - key: AI_CALLS_PER_DAY
