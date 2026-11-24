@@ -56,16 +56,20 @@ NOT_IN_PILOT = (f"Namaste 🙏 *{BRAND}* abhi kuch chuni hui dukaanon ke saath p
                 "Aapki dilchaspi ke liye shukriya.")
 # The first message a new number gets (whatever it sent: 'hi', a photo, a voice note). One screen: what it does in
 # four lines, the one promise that builds trust (nothing is saved without your tap), privacy in the footer.
-WELCOME_HEADER = f"{BRAND} 📒 supplier ka hisaab"
-WELCOME = ("Namaste 🙏 Main aapke *supplier ka hisaab* WhatsApp pe rakhta hoon.\n\n"
-           "📷 *Bill ki photo* bhejiye: main padh lunga\n"
-           "🎙️ *Boliye*: _Sharma ko 5000 diye_: main likh lunga\n"
-           "📒 *Poochiye*: _kitna baaki hai_: turant jawab\n"
-           "⏰ Kahiye toh *yaad bhi dilaunga*: _Sharma ko Friday yaad dilana_\n\n"
-           "✅ Har entry pehle aapko dikhaunga. *Sahi hai* dabane par hi save hogi.\n"
+# 24 Nov (Vipul): modern and aspirational, never "udhaar ka hisaab" or "munshi". What it is, why it helps, the three
+# ways in, the card promise and privacy. For an owner who has never used a bot: no jargon, one example each.
+WELCOME_HEADER = f"{BRAND} 📒 dukaan ka smart hisaab"
+WELCOME = (f"Namaste 🙏 Main *{BRAND}* hoon: aapki dukaan ka *smart hisaab*, isi WhatsApp pe.\n\n"
+           "Supplier ke *bill*, unko kiye *payment*, aur *kisko kitna dena hai*: sab ek jagah, apne aap. "
+           "Na register, na calculator, na bhool.\n"
+           "✨ Bade business jaisa pakka hisaab, ab aapki dukaan mein bhi.\n\n"
+           "*Jo aasaan lage, waise bataiye:*\n"
+           "📷 Bill ki *photo* bhejiye\n"
+           "🎙️ *Bol dijiye*: _Sharma ko 5000 diye_\n"
+           "✍️ Ya *likh dijiye*: _Gupta ka bill 4580_\n"
+           "📒 Phir kabhi bhi poochiye: _kitna baaki hai_\n\n"
+           "✅ Har entry pehle *card* pe dikhaunga. Sahi ho toh *Sahi hai* dabaiye ya _ok_ likhiye.\n"
            "🔒 Hisaab sirf aapka. Bill AI padhta hai, koi insaan nahi.")
-# 23 Nov: the welcome promised due-date reminders to everyone, but they go to the treatment group only; owner-asked
-# reminders work for every shop, so that is what it promises now. One lock line, not two.
 WELCOME_FOOTER = "Photo 30 din mein delete · STOP likh ke band"
 BTN_CONSENT_YES = "✅ Shuru karein"
 BTN_CONSENT_EXAMPLE = "👀 Example dekhein"
@@ -91,6 +95,52 @@ READY = ("✅ Taiyaar! Bas bhejiye:\n"
          "✍️ Ya likh ke: _Gupta ka bill 4580_\n\n"
          "Har entry pehle aapko dikhaunga. *Sahi hai* dabane par hi save hogi.\n"
          "📒 Hisaab dekhna ho: _kitna baaki hai_")
+# 24 Nov: the first-day tour. After 'Shuru', the owner tries each way in once (photo, voice, a question), so no
+# shop stays on photos only without knowing the rest. Live bot and simulator only (Bot(coach=True)).
+# 24 Nov: each step on its own, so a lost owner can be shown the step he is on again
+TOUR_STEP = {1: "*Kadam 1 / 3:* 📷 Abhi ke kisi bill ki *photo* bhejiye.\n"
+                "_(Bill paas nahi? Likh dijiye: Gupta ka bill 4580)_",
+             2: "*Kadam 2 / 3:* 🎙️ Ab *bol ke* bataiye. Mic 🎤 dabake boliye: _Gupta ko 1000 diye_\n"
+                "_(Bolna nahi? Likh bhi sakte hain.)_",
+             3: "*Kadam 3 / 3:* 📒 Likhiye ya boliye: _kitna baaki hai_"}
+TOUR_SKIP_HINT = "_Abhi nahi? Likhiye: baad mein_"
+TOUR_1 = ("✅ Shuru karte hain! *3 chhote kadam*, 2 minute mein sab samajh aa jayega.\n\n"
+          + TOUR_STEP[1] + "\n\n" + TOUR_SKIP_HINT)
+TOUR_2 = "👏 Bahut badhiya! Pehla kadam ho gaya.\n\n" + TOUR_STEP[2]
+TOUR_3 = "👏 Shabaash! Ab sabse kaam ki cheez.\n\n" + TOUR_STEP[3]
+TOUR_REMIND = "👋 Chaliye, wahin se aage badhte hain.\n\n{step}\n\n" + TOUR_SKIP_HINT
+TOUR_DONE = ("🎉 Bas! Aap taiyaar hain. Ab hisaab apne aap chalega.\n\n"
+             "Kaam ki 3 baatein:\n"
+             "✏️ Galti ho jaye: _last wala galat hai_ ya _5000 nahi 5500_\n"
+             "📝 Purana baaki: _Gupta ka purana baaki 12000_\n"
+             "⏰ Yaad dilana: _Sharma ko Friday yaad dilana_\n\n"
+             "Sab options: _menu_ · Phir se seekhna: _sikhao_ · Koi dikkat: _feedback_")
+# the owner saved again instead of asking at step 3: the question is the one thing he must not miss
+TOUR_DONE_NO_QUESTION = "📒 Jab chahein likhiye _kitna baaki hai_: sab supplier ka baaki ek saath.\n\n" + TOUR_DONE
+TOUR_SKIPPED = ("👍 Theek hai! Seedha kaam shuru kijiye: bill ki *photo* bhejiye, ya bol ke / likh ke bataiye.\n\n"
+                "Jab mann ho, likhiye _sikhao_: sab kuch 1 message mein.")
+# 'sikhao' / 'kaise use kare': everything the owner can do, in one message (any time, tour or not)
+GUIDE = ("📒 *VahiBook se kya kya kar sakte hain*\n\n"
+         "*Bhejiye* (jo aasaan lage):\n"
+         "📷 Bill ki *photo* ya PDF\n"
+         "🎙️ *Bol ke*: _Sharma ko 5000 diye_\n"
+         "✍️ *Likh ke*: _Gupta ka bill 4580_\n"
+         "📝 Purana baaki: _Gupta ka purana baaki 12000_\n"
+         "↩️ Maal wapas: _Gupta ne 300 ka maal wapas liya_\n\n"
+         "*Poochiye*:\n"
+         "💰 _kitna baaki hai_ · _Sharma ka kitna baaki_\n"
+         "📅 _aaj ka hisaab_ · _is hafte kitna diya_\n"
+         "⏰ _Sharma ko Friday yaad dilana_\n\n"
+         "*Galti ho jaye*: _last wala galat hai_ ya _5000 nahi 5500_\n"
+         "Koi dikkat: _feedback_ · Sab options: _menu_")
+# One tip at a time, added under a save after the tour (saves 3, 5, 7, 9, 11; at most one a day)
+TIPS = ("💡 *Tip:* galti ho jaye toh likhiye _last wala galat hai_",
+        "💡 *Tip:* ek supplier ka poora hisaab: _Sharma ka kitna baaki_",
+        "💡 *Tip:* yaad dilana ho toh: _Sharma ko Friday yaad dilana_",
+        "💡 *Tip:* maal wapas kiya? Likhiye: _Gupta ne 300 ka maal wapas liya_",
+        "💡 *Tip:* is hafte ka hisaab: _is hafte kitna diya_")
+TIP_AT_SAVES = (3, 5, 7, 9, 11)
+ANSWER_THE_BUTTONS = "👆 Upar wale sawaal ka jawab *button dabake* dijiye."
 WELCOME_DONE = READY        # no question at signup any more (1 Nov): the shop's name is asked after the first bill
 WELCOME_DONE_NAMED = READY
 SKIP_WORDS = {"skip", "nahi", "nahin", "baad mein", "baad me", "no", "chhodo"}
@@ -179,6 +229,8 @@ READING = "📷 Bill mil gaya, padh raha hoon... (10–20 second)"
 READING_PDF = "📄 PDF mil gaya, padh raha hoon..."
 DOC_NOT_SUPPORTED = "Ye file main nahi padh sakta. Supplier ke bill ki *photo* ya *PDF* bhejiye."
 PDF_FAILED = "Ye PDF khul nahi paayi (shayad password laga hai ya file kharab hai). Bill ki photo bhejiye."
+PDF_NOT_A_BILL = ("📄 Ye *quotation / rate list* lag rahi hai, bill nahi: isliye save nahi kiya.\n"
+                  "Maal aa gaya ho toh uska *bill* bhejiye, ya likh dijiye: _Mehta ka bill 7176_")
 PDF_TOO_BIG = "PDF bahut badi hai. Sirf bill wale page ki photo bhejiye."
 READ_FAILED = "Maaf kijiye, ye bill abhi padh nahi paaya. Thodi der mein dobara photo bhejiye, roshni mein aur seedha."
 NOT_A_BILL = "Ye photo bill jaisi nahi lag rahi, isliye kuch save nahi kiya. Supplier ke bill ki saaf photo bhejiye."
@@ -335,7 +387,8 @@ ASK_SUPPLIER = "Kis supplier ka? Neeche list se chuniye 👇"
 ASK_PERIOD = "Kis samay ka? Neeche list se chuniye 👇"
 ASK_DAY = "Kis din yaad dilaun? Neeche list se chuniye 👇 (ya date likhiye: _28 tarikh_)"
 ASK_CANCEL = "Kaunsa reminder hatana hai? 👇"
-NO_SUPPLIERS = "Abhi koi supplier nahi hai. Pehle supplier ke bill ki photo bhejiye."
+NO_SUPPLIERS = ("Abhi koi supplier nahi hai. Bill ki photo bhejiye, ya purana baaki likhiye: "
+                "_Gupta ka purana baaki 12000_")
 NO_REMINDERS = "⏰ Abhi koi reminder nahi.\nNaya reminder: _Sharma ko Friday yaad dilana_"
 REMINDER_GONE = "Ye reminder ab nahi hai (shayad bhej diya gaya ya pehle hi hata diya)."
 QUESTION_EXPIRED = "Ye sawaal purana ho gaya. Neeche se dobara chuniye 👇"
@@ -397,7 +450,8 @@ def supplier_dues(s: dict, today: date) -> str:
     return "\n".join(lines)
 
 
-DUES_DETAIL_HINT = "\n\nKisi supplier ke bill aur payment dekhne ke liye *Detail dekhein* dabaiye."
+DUES_DETAIL_HINT = ("\n\nKisi supplier ke bill aur payment dekhne ke liye *Detail dekhein* dabaiye."
+                    "\nAur poochiye: _is hafte kitna diya_ · _mere reminders_")
 LIST_BTN_DETAIL = "Detail dekhein"
 
 
@@ -600,7 +654,7 @@ def _day_word(d: date, today: date) -> str:
     return {0: f"aaj ({short_date(d)})", 1: f"kal ({short_date(d)})"}.get(n, nice_date(d))
 
 
-BILL_CARD_TITLE = {"bill": "🧾 *Naya bill*", "udhaar": "📝 *Udhaar jodna* (bina bill)",
+BILL_CARD_TITLE = {"bill": "🧾 *Naya bill*", "udhaar": "📝 *Purana baaki jodna* (bina bill)",
                    "return": "↩️ *Maal wapas* (baaki kam hoga)"}
 BILL_CARD_AMOUNT = {"bill": "Total", "udhaar": "Baaki mein jodna", "return": "Wapas maal"}
 

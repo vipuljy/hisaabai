@@ -71,10 +71,17 @@ THANKS_WORDS = {"shukriya", "sukriya", "shukria", "dhanyavad", "dhanyawad", "dha
                 "thanks", "thanku", "thank u", "thnx", "thx", "tq", "ty", "🙏", "👍", "👌", "ok",
                 "okay", "okk", "ok ji", "achha", "acha", "accha", "achha ji", "theek hai", "thik hai", "ji", "nice",
                 "good", "badhiya", "badiya", "super", "very good", "thank you ji", "thanks ji", "shukriya ji"}
+REACTION_YES = {"\U0001f44d", "\u2705", "\U0001f44c"}
 GREET_WORDS = {"good morning", "gm", "good night", "gn", "good evening", "good afternoon", "kaise ho", "kaise hain",
                "kaise hai", "kya haal", "kya haal hai", "kya hal hai", "kya hal", "ram ram", "ram ram ji",
                "jai shree krishna", "jai shri krishna", "radhe radhe", "sat sri akal", "jai mata di", "salaam", "salam",
                "assalamualaikum", "jai hind", "namaste ji", "namaskar ji", "pranam"}
+# 24 Nov: an owner may not want the tour, or may get lost in it
+TOUR_SKIP_WORDS = {"baad mein", "baad me", "bad mein", "bad me", "baad main", "skip", "skip karo", "later", "abhi nahi",
+                   "tour band", "tour nahi", "tour nahi chahiye", "nahi seekhna", "pata hai", "mujhe pata hai"}
+GUIDE_WORDS = {"sikhao", "sikha do", "sikhaiye", "seekhna hai", "tour", "demo", "guide", "features", "kaise use kare",
+               "kaise use karein", "kaise use karu", "kaise chalaye", "kaise chalayein", "kaise chalate hai",
+               "kya kya kar sakte ho", "kya kar sakte ho", "kya kya hota hai", "kya kya kar sakta hai"}
 _SKIN = re.compile("[\U0001F3FB-\U0001F3FF\uFE0F]")
 
 
@@ -196,8 +203,13 @@ class Bot(EntryFlow, FeedbackFlow):
     def __init__(self, store, wa, extractor, pilot_open: bool = False, image_dir: Path | str = "data/raw/bills",
                  transcriber=None, voice_parser=None, photos=None, limits: Limits | None = None,
                  question_llm=None, today_fn=None, entry_parser=None, timing_events: bool = False,
-                 feedback_prompts: bool = False):
+                 feedback_prompts: bool = False, coach: bool = False):
         self.store = store
+        # 24 Nov: the first-day tour (photo, voice, a question) and one tip at a time after it. Live bot and simulator
+        # only, like feedback_prompts, so flow tests keep their exact message order.
+        self.coach = coach
+        self._handled = 0   # messages handled by this process: the first one after a restart or a sleep is timed
+        self._asked: dict[str, str | None] = {}   # per shop: the last thing sent was a "card" or a "question"
         # The bot ASKS for feedback (a rating after the 5th entry and on day 10; an offer after 2 cancels or
         # frustrated words) only where this is on: the live bot and the simulator. Owner-started feedback always works.
         self.feedback_prompts = feedback_prompts
@@ -239,6 +251,7 @@ class Bot(EntryFlow, FeedbackFlow):
                 timer[1] += _time.perf_counter() - started
 
     async def _text(self, shop, body):
+        self._asked[str(shop["id"])] = None
         mid = await self._timed_send(self.wa.send_text, shop["wa_id"], body)
         self.store.record_message(shop["id"], "out", mid, "text", body)
         if mid is None:
@@ -246,12 +259,15 @@ class Bot(EntryFlow, FeedbackFlow):
 
     async def _buttons(self, shop, body, buttons, header=None, footer=None):
         extra = {k: v for k, v in (("header", header), ("footer", footer)) if v}
+        # what the owner is looking at last: a card (its first button is Sahi hai) or another question (24 Nov)
+        self._asked[str(shop["id"])] = "card" if buttons and buttons[0][1] == M.BTN_OK else "question"
         mid = await self._timed_send(self.wa.send_buttons, shop["wa_id"], body, buttons, **extra)
         self.store.record_message(shop["id"], "out", mid, "interactive", body)
         if mid is None:
             self._send_failed(shop, "buttons")
 
     async def _list(self, shop, body, button, rows):
+        self._asked[str(shop["id"])] = "question"
         mid = await self._timed_send(self.wa.send_list, shop["wa_id"], body, button, rows)
         self.store.record_message(shop["id"], "out", mid, "interactive", body)
         if mid is None:
@@ -296,6 +312,8 @@ class Bot(EntryFlow, FeedbackFlow):
             split = {"ms": ms, "type": msg.get("type", "?"), "db_q": db[0], "db_ms": int(db[1] * 1000),
                      "wa_n": wa[0], "wa_ms": int(wa[1] * 1000)}
             split["other_ms"] = max(0, ms - split["db_ms"] - split["wa_ms"])   # AI reading, voice, Python
+            split["first"] = self._handled == 0   # first message since this process started (a cold start)
+            self._handled += 1
             # the reply time (WhatsApp sends included), and where it went: fix the biggest part first
             log.info("handled %s in %d ms (database %d queries %d ms, whatsapp %d sends %d ms, other %d ms)",
                      split["type"], ms, split["db_q"], split["db_ms"], split["wa_n"], split["wa_ms"], split["other_ms"])
@@ -377,6 +395,14 @@ class Bot(EntryFlow, FeedbackFlow):
             await self._on_voice(shop, media_id)
         elif text:
             await self._on_text(shop, text, lower)
+        elif mtype == "reaction":   # 24 Nov: a 👍 on a card is a yes; any other reaction is not answered
+            emoji = small_words(((msg.get("reaction") or {}).get("emoji") or ""))
+            self.store.log_event(shop["id"], "reaction", {"yes": emoji in REACTION_YES})
+            if emoji in REACTION_YES:
+                await self._typed_yes(shop, shop.get("state") or {})
+        elif mtype == "sticker":    # a good-morning sticker: a short thanks, not "maaf kijiye"
+            self.store.log_event(shop["id"], "small_talk", {"kind": "sticker"})
+            await self._text(shop, M.THANKS_REPLY)
         else:
             self.store.log_event(shop["id"], "off_topic", {"type": mtype})
             await self._text(shop, M.OFF_TOPIC)
@@ -391,7 +417,11 @@ class Bot(EntryFlow, FeedbackFlow):
             self.store.update_shop(shop["id"], consent_at=now, onboarded_at=now, status="active")
             self.store.log_event(shop["id"], "opt_in", {"via": "typed" if typed_yes else "button"})
             self._set_state(shop, {})
-            await self._text(shop, M.READY)   # no questions at signup: the shop's name is asked after the first entry
+            if self.coach:   # 24 Nov: a 3-step tour, so every owner tries photo, voice and a question on day 1
+                self.store.log_event(shop["id"], "tour_started", {"v": 1})
+                await self._text(shop, M.TOUR_1)
+            else:
+                await self._text(shop, M.READY)   # no questions at signup: the shop's name is asked after the first entry
         elif button == "consent_no":
             self.store.log_event(shop["id"], "consent_declined", {})
             await self._text(shop, M.CONSENT_DECLINED)
@@ -643,6 +673,10 @@ class Bot(EntryFlow, FeedbackFlow):
             self.store.log_event(shop["id"], "pdf_rejected", {"reason": "unreadable", "error": type(err).__name__})
             await self._text(shop, M.PDF_FAILED)
             return
+        if pdf["route"] == "none":   # 24 Nov: a quotation / proforma / rate list is not a bill: nothing is saved
+            self.store.log_event(shop["id"], "pdf_rejected", {"reason": pdf["reason"], "pages": pdf["pages"]})
+            await self._text(shop, M.PDF_NOT_A_BILL)
+            return
         props = {"pages": pdf["pages"], "page_used": pdf["page"], "pdf_route": pdf["reason"]}
         if pdf["route"] == "image":
             if not await self._ai_allowed(shop):
@@ -743,7 +777,7 @@ class Bot(EntryFlow, FeedbackFlow):
                    else self._show_photo_summary(shop, bill))
             return
         status = self.store.confirm_bill(bill_id, supplier["id"])
-        props = {"bill_id": bill_id, "source": bill.get("source") or "photo"}
+        props = {"bill_id": bill_id, "source": bill.get("source") or "photo", "kind": bill.get("kind") or "bill"}
         if status == "corrected":
             props["fields"] = self.store.corrected_fields(bill_id)
         props["dup_ok"] = dup_ok
@@ -752,9 +786,8 @@ class Bot(EntryFlow, FeedbackFlow):
         self._forget(shop)
         due = self._due_of(shop, supplier["id"])
         offer = M.PROOF_OFFER if bill.get("source") in ("voice", "typed") and bill.get("kind", "bill") == "bill" else ""
-        await self._text(shop, M.bill_saved(supplier["name"], due) + offer)
-        if not await self._maybe_ask_shop_name(shop):   # the proof offer is a hint, not a question: no clash
-            await self._maybe_ask_rating(shop)
+        await self._text(shop, M.bill_saved(supplier["name"], due) + offer + self._tip_line(shop))
+        await self._after_save(shop)
 
     async def _answer_field(self, shop, state, text):
         bill = self._own_pending_bill(shop, state["bill_id"])
@@ -929,6 +962,12 @@ class Bot(EntryFlow, FeedbackFlow):
             lower = text.lower().strip(" .!")
             self.store.log_event(shop["id"], "typo_fixed", {"words": len(slips)})
         small = small_words(lower)
+        if small in GUIDE_WORDS:   # 'sikhao': every feature in one message, any time
+            self.store.log_event(shop["id"], "guide_viewed", {"in_tour": self._tour_on(shop)})
+            await self._text(shop, M.GUIDE)
+            return
+        if self._tour_on(shop) and await self._tour_words(shop, state, small):
+            return
         if small in CARD_YES_WORDS and await self._typed_yes(shop, state):
             return
         if small in THANKS_WORDS or small in GREET_WORDS:
@@ -961,12 +1000,96 @@ class Bot(EntryFlow, FeedbackFlow):
             await self._unclear_question(shop, text, parsed, suppliers, "text")
             return
         if F.FRUSTRATED_RE.search(lower):   # 'kaam nahi kar raha', 'bekar': ask what went wrong (once a day)
-            self.store.log_event(shop["id"], "off_topic", {"type": "text", "frustrated": True})
+            self.store.log_event(shop["id"], "off_topic", {"type": "text", "frustrated": True,
+                                                           "text": F.mask_numbers(text)[:200]})
             if await self._maybe_offer_feedback(shop, "words", daily_limit=False):
                 return
-        else:
-            self.store.log_event(shop["id"], "off_topic", {"type": "text"})
+        else:   # the words are kept (numbers masked) for the mistakes report: each repeated miss becomes a rule
+            self.store.log_event(shop["id"], "off_topic", {"type": "text", "text": F.mask_numbers(text)[:200]})
         await self._show_menu(shop, M.OFF_TOPIC)
+
+    # ------------------------------------------------------------ first-day tour and tips (24 Nov)
+    def _tour_on(self, shop) -> bool:
+        """The tour was started and is not finished yet."""
+        return self.coach and self.store.event_exists(shop["id"], "tour_started", "v", 1) \
+            and not self.store.event_exists(shop["id"], "tour_done", "v", 1)
+
+    def _tour_step_now(self, shop) -> int:
+        """The step the owner was last shown: 1, 2 or 3."""
+        for step in (3, 2):
+            if self.store.event_exists(shop["id"], "tour_step", "step", step):
+                return step
+        return 1
+
+    async def _end_tour(self, shop, how: str, text: str, ask_name: bool = True):
+        """Every way out of the tour logs the same 'tour_done' (v 1) with how it ended, so tips and the shop-name
+        question start again. how: finished / any_order / saved_instead / skipped."""
+        self.store.log_event(shop["id"], "tour_done", {"v": 1, "how": how, "step": self._tour_step_now(shop)})
+        await self._text(shop, text)
+        if ask_name:
+            await self._maybe_ask_shop_name(shop)
+
+    async def _tour_words(self, shop, state, small: str) -> bool:
+        """During the tour: 'baad mein' ends it politely; 'hi' / 'menu' / a greeting shows the step he is on.
+        'chhodo' / 'rehne do' count as a skip only when no card or question is waiting (else they cancel that)."""
+        since = datetime.now(timezone.utc) - timedelta(minutes=30)
+        busy = bool(state.get("await")) or bool(self.store.pending_count(shop["id"], since)) \
+            or self._asked.get(str(shop["id"])) == "question"
+        if small in TOUR_SKIP_WORDS or (small in CANCEL_WORDS and not busy):
+            await self._end_tour(shop, "skipped", M.TOUR_SKIPPED, ask_name=False)
+            return True
+        if not busy and (small in MENU_WORDS or small in GREET_WORDS):
+            self.store.log_event(shop["id"], "tour_reminded", {"step": self._tour_step_now(shop)})
+            await self._text(shop, M.TOUR_REMIND.format(step=M.TOUR_STEP[self._tour_step_now(shop)]))
+            return True
+        return False
+
+    async def _after_save(self, shop):
+        """After a saved entry: the next tour step, or else the shop-name question, or else the rating.
+        The tour follows the owner, never the other way round: a question asked early counts as step 3, and a save
+        where the question was asked for ends the tour (with the question shown once more), so it never hangs."""
+        if self._tour_on(shop):
+            since = datetime.now(timezone.utc) - timedelta(minutes=30)
+            if self.store.pending_count(shop["id"], since):
+                return   # other cards from the same message still wait: one thing at a time
+            asked = self.store.event_exists(shop["id"], "tour_step", "step", "q")
+            if not self.store.event_exists(shop["id"], "tour_step", "step", 2):
+                self.store.log_event(shop["id"], "tour_step", {"step": 2})
+                await self._text(shop, M.TOUR_2)
+            elif asked:
+                await self._end_tour(shop, "any_order", M.TOUR_DONE)
+            elif not self.store.event_exists(shop["id"], "tour_step", "step", 3):
+                self.store.log_event(shop["id"], "tour_step", {"step": 3})
+                await self._text(shop, M.TOUR_3)
+            else:
+                await self._end_tour(shop, "saved_instead", M.TOUR_DONE_NO_QUESTION)
+            return
+        if not await self._maybe_ask_shop_name(shop):   # the proof offer is a hint, not a question: no clash
+            await self._maybe_ask_rating(shop)
+
+    async def _coach_after_question(self, shop):
+        """The tour ends with the first question answered after step 3; then the shop's name is asked.
+        A question asked before step 3 is remembered, so step 3 is not asked again later."""
+        if not self._tour_on(shop):
+            return
+        if self.store.event_exists(shop["id"], "tour_step", "step", 3):
+            await self._end_tour(shop, "finished", M.TOUR_DONE)
+        elif not self.store.event_exists(shop["id"], "tour_step", "step", "q"):
+            self.store.log_event(shop["id"], "tour_step", {"step": "q"})
+
+    def _tip_line(self, shop) -> str:
+        """One tip under a save after the tour: at saves 3, 5, 7, 9, 11, at most one a day, each once."""
+        if not self.coach or self._tour_on(shop):
+            return ""
+        n = self.store.shop_counts(shop["id"])
+        saves = n["bills"] + n["payments"]
+        if saves not in M.TIP_AT_SAVES:
+            return ""
+        i = M.TIP_AT_SAVES.index(saves)
+        if i >= len(M.TIPS) or not self._once(shop, f"tip:{i}") or not self._once(shop, f"tipday:{self._today()}"):
+            return ""
+        self.store.log_event(shop["id"], "tip_shown", {"tip": i})
+        return "\n\n" + M.TIPS[i]
 
     async def _typed_yes(self, shop, state) -> bool:
         """'ok' / 'haan' typed under a card: with exactly one card open (last 30 minutes) and no question waiting, it
@@ -974,7 +1097,16 @@ class Bot(EntryFlow, FeedbackFlow):
         saved on a word). Several cards, or a question waiting: ask to tap the right button. False: no card open."""
         since = datetime.now(timezone.utc) - timedelta(minutes=30)
         cards = self.store.pending_entries(shop["id"], since)
+        if self._asked.get(str(shop["id"])) == "question":
+            # 24 Nov: 'ok' under "pehle ka koi baaki tha?" or "Kyun?" must not save the card behind that question
+            self.store.log_event(shop["id"], "typed_yes", {"result": "answer_buttons"})
+            await self._text(shop, M.ANSWER_THE_BUTTONS)
+            return True
         if not cards:
+            if state.get("await"):   # 'ok' while a choice question waits: point at its buttons (24 Nov)
+                self.store.log_event(shop["id"], "typed_yes", {"result": "answer_buttons"})
+                await self._text(shop, M.ANSWER_THE_BUTTONS)
+                return True
             return False
         if len(cards) > 1 or state.get("await"):
             self.store.log_event(shop["id"], "typed_yes", {"result": "ask_tap", "open": len(cards)})
@@ -1119,10 +1251,11 @@ class Bot(EntryFlow, FeedbackFlow):
         body = M.dues_all(rows) + M.DUES_DETAIL_HINT
         if len(body) > 1024:   # a WhatsApp list's text is at most 1024 characters: plain text, names can be typed
             await self._text(shop, M.dues_all(rows))
-            return
-        # 18 Nov phone test: one tap for any supplier's detail (it was only reachable by typing the name)
-        await self._list(shop, body, M.LIST_BTN_DETAIL,
-                         [(f"dsup:{r['supplier_id']}", r["supplier"][:24], M.dues_row_note(r)) for r in rows[:10]])
+        else:   # 18 Nov phone test: one tap for any supplier's detail (it was only reachable by typing the name)
+            await self._list(shop, body, M.LIST_BTN_DETAIL,
+                             [(f"dsup:{r['supplier_id']}", r["supplier"][:24], M.dues_row_note(r)) for r in rows[:10]])
+            self._asked[str(shop["id"])] = None   # an answer with an optional tap, not a question: 'ok' = thanks
+        await self._coach_after_question(shop)
 
     async def _supplier_detail(self, shop, supplier_id):
         """A tap on a supplier in the 'kitna baaki' list = the question 'is supplier ka kitna baaki' (its detail)."""
@@ -1273,6 +1406,7 @@ class Bot(EntryFlow, FeedbackFlow):
             body = answers.answer(self.store, shop["id"], intent, today, supplier=supplier, period=per)
         self.store.log_event(shop["id"], "question_answered", {"intent": intent, "via": st["by"]})
         await self._text(shop, body)
+        await self._coach_after_question(shop)
 
     async def _on_question_tap(self, shop, kind, value):
         st = dict(shop.get("state") or {})

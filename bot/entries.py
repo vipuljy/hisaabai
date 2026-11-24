@@ -73,7 +73,9 @@ OLD_DUES = (("purana", "baaki"), ("purana", "baki"), ("pichla", "baaki"), ("pich
 # old dues said any common way: 'purana / pichla / pehle ka' + 'baaki / hisaab / udhaar', or 'baaki jodo / add karo'
 OLD_WORDS = {"purana", "purane", "purani", "pichla", "pichhla", "pichle", "pichhle", "pichli", "pichhli", "old",
              "opening", "pehle", "pahle", "pehla", "pichhala"}
-DUES_WORDS = {"baaki", "baki", "bakaya", "bakaaya", "hisaab", "hisab", "udhaar", "udhar", "udhari", "balance", "khata"}
+DUES_WORDS = {"baaki", "baki", "bakaya", "bakaaya", "hisaab", "hisab", "udhaar", "udhar", "udhari", "balance", "khata",
+              "bacha", "bache", "bachi"}   # 24 Nov: 'purana bacha 1200' was missed
+ASK_WORDS = {"kitna", "kitne", "kitni", "kya", "kab", "kaun", "kiska", "kiske", "batao", "bata", "dikhao", "?"}
 ADD_WORDS = {"jodo", "jod", "joddo", "jodna", "joda", "jodiye", "add", "chadhao", "chadhado", "chadha", "chadhana"}
 TOOK_GOODS = {"liya", "liye", "li", "lia", "liyaa", "uthaya", "uthaye", "uthaaya"}   # 'Gupta se 500 ka bartan liya'
 DAMAGED = {"expiry", "expire", "expired", "kharab", "tuta", "tute", "toota", "toote", "damage", "damaged", "defective",
@@ -674,7 +676,13 @@ def _classify(toks: list[str]) -> str | None:
 
 
 def _old_dues(toks: list[str]) -> bool:
-    """'purana baaki', 'pichle mahine ka hisab', 'pehle ka udhaar', 'Sharma ka baaki jodo 5000'."""
+    """'purana baaki', 'pichle mahine ka hisab', 'pehle ka udhaar', 'Sharma ka baaki jodo 5000'; and a plain statement
+    with an amount, 'Gupta ka 1200 baaki hai' (24 Nov: it was read as a question), unless it asks ('kitna', '?')."""
+    if not set(toks) & ASK_WORDS:
+        for i, t in enumerate(toks):
+            if re.fullmatch(r"\d+(?:\.\d+)?", t) and i >= 2 and toks[i - 1] in {"ka", "ki", "ke"} \
+                    and set(toks[i + 1:i + 3]) & {"baaki", "baki", "bakaya", "bacha"}:   # '<name> ka 1200 baaki
+                return True
     for i, t in enumerate(toks):
         if t in DUES_WORDS:
             if set(toks[max(0, i - 3):i]) & OLD_WORDS or any(_phrase(toks, *p) for p in OLD_DUES):

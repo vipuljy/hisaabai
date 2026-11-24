@@ -85,10 +85,12 @@ def build(shops: list[dict], events: list[dict], today: date, days: int = 7, mon
     L = [f"# Pilot health, {today:%d %b %Y}", "",
          f"Window: {start:%d %b} to {today:%d %b} ({days} days, IST). Pairs read *today / {days} days*.", ""]
     L += feedback_lines(win, code, c)
+    L += mistakes_lines(win, code)
     L += ["## Shops",
          f"- {len(shops)} shops: {status.get('active', 0)} active, {status.get('invited', 0)} invited, "
          f"{status.get('opted_out', 0)} stopped",
          f"- Used the bot: {len(active_today)} today, {len(active_week)} in {days} days",
+         cohort_line(shops, active_week),
          f"- New sign-ups (consent): {both('opt_in')}; declined: {both('consent_declined')}; "
          f"example viewed: {both('example_viewed')}", "",
          "## Entries (the core loop)",
@@ -147,10 +149,102 @@ def build(shops: list[dict], events: list[dict], today: date, days: int = 7, mon
             L.append(f"| {code.get(sid, '?')} | {last[sid].astimezone(IST):%d %b %H:%M} | {sum(n[x] for x in saved)} | "
                      f"{n['bill_cancelled'] + n['payment_cancelled']} | {n['question_asked'] + n['dues_asked']} | "
                      f"{n['card_warned']} |")
+        L += [""] + adoption_lines(win, code)
         quiet = sorted(code[str(s["id"])] for s in shops if s["status"] == "active" and str(s["id"]) not in active_week)
         if quiet:
             L += ["", f"Active but silent for {days} days: {', '.join(quiet)} (a call or a nudge?)"]
     return "\n".join(L) + "\n"
+
+
+FIX_EVENTS = ("entry_edited", "entry_deleted", "entry_adjusted", "fix_open_card")
+# Feature adoption (24 Nov): which ways in and which features each shop has used at least once in the window
+FEATURES = (("Photo", lambda e: e["event"] == "bill_received" and (e["props"] or {}).get("source", "photo") == "photo"),
+            ("PDF", lambda e: e["event"] == "bill_received"     # 24 Nov: sources are pdf_text / pdf_scan, not "pdf"
+             and str((e["props"] or {}).get("source") or "").startswith("pdf")),
+            ("Voice", lambda e: e["event"] == "voice_received"),
+            ("Typed", lambda e: e["event"] == "entry_parsed" and (e["props"] or {}).get("source") == "text"),
+            ("Question", lambda e: e["event"] in ("question_answered", "dues_asked")),
+            ("Fix", lambda e: e["event"] in FIX_EVENTS),
+            ("Reminder", lambda e: e["event"] == "reminder_set"),
+            ("Old dues", lambda e: e["event"] == "old_dues_added" or (e["event"] == "bill_confirmed"
+                                                                     and (e["props"] or {}).get("kind") == "udhaar")),
+            ("Return", lambda e: e["event"] == "refund_logged" or (e["event"] == "bill_confirmed"
+                                                                  and (e["props"] or {}).get("kind") == "return")),
+            ("Feedback", lambda e: e["event"] == "feedback_given"),
+            ("Tour done", lambda e: e["event"] == "tour_done" and (e["props"] or {}).get("how") != "skipped"))
+
+
+def cohort_line(shops: list[dict], active_week) -> str:
+    """24 Nov: real pilot shops (S01...) and friendly users (F01... family and friends, T01... test phones) are counted
+    apart: only S shops go into the case study's numbers and the experiment."""
+    real = [s for s in shops if re.fullmatch(r"S\d+", s.get("shop_code") or "")]
+    friendly = [s for s in shops if s not in real]
+    used = lambda group: sum(1 for s in group if str(s["id"]) in active_week)   # noqa: E731
+    return (f"- **Real pilot shops (S codes): {len(real)}, {used(real)} used it in the window**; "
+            f"friendly users (F family / T test): {len(friendly)}, {used(friendly)} used it. Case study counts S only.")
+
+
+def adoption_lines(win: list[dict], code: dict) -> list[str]:
+    """A table: one row per shop, a tick for each feature it used; the last row counts shops per feature."""
+    used = defaultdict(set)
+    for e in win:
+        if e["shop_id"]:
+            for name, test in FEATURES:
+                if test(e):
+                    used[str(e["shop_id"])].add(name)
+    if not used:
+        return []
+    names = [n for n, _ in FEATURES]
+    out = ["## Feature adoption (used at least once in the window)", "",
+           "| Shop | " + " | ".join(names) + " |", "| --- " * (len(names) + 1) + "|"]
+    for sid in sorted(used, key=lambda x: code.get(x, "?")):
+        out.append(f"| {code.get(sid, '?')} | " + " | ".join("✓" if n in used[sid] else "" for n in names) + " |")
+    out.append("| **Shops** | " + " | ".join(str(sum(1 for u in used.values() if n in u)) for n in names) + " |")
+    return out + tour_lines(win, code)
+
+
+def tour_lines(win: list[dict], code: dict) -> list[str]:
+    """24 Nov: how the first-day tour went: finished, skipped (at which step), or still open (nudge those shops
+    yourself on WhatsApp: the bot never chases them)."""
+    started = {str(e["shop_id"]) for e in win if e["event"] == "tour_started"}
+    if not started:
+        return []
+    ended = {str(e["shop_id"]): e["props"] or {} for e in win if e["event"] == "tour_done"}
+    done = [s for s in started if s in ended and ended[s].get("how") != "skipped"]
+    skipped = [s for s in started if s in ended and ended[s].get("how") == "skipped"]
+    open_ = sorted((s for s in started if s not in ended), key=lambda x: code.get(x, "?"))
+    reminded = sum(1 for e in win if e["event"] == "tour_reminded")
+    guide = sum(1 for e in win if e["event"] == "guide_viewed")
+    line = f"- First-day tour: {len(started)} started, {len(done)} finished, {len(skipped)} skipped"
+    if skipped:
+        line += " (at step " + ", ".join(str(ended[s].get("step", "?")) for s in sorted(skipped)) + ")"
+    out = ["", line + f"; shown the step again {reminded} times; 'sikhao' guide opened {guide} times"]
+    if open_:
+        out.append("- Tour not finished, nudge them yourself: " + ", ".join(code.get(s, "?") for s in open_))
+    return out
+
+
+def mistakes_lines(win: list[dict], code: dict, limit: int = 15) -> list[str]:
+    """Second section (24 Nov): what owners sent that the bot did not understand, in their words (numbers masked),
+    newest first, and the other signs of a stuck owner. Each repeated miss becomes a rule (a bug fix)."""
+    missed = sorted((e for e in win if e["event"] == "off_topic" and (e["props"] or {}).get("text")),
+                    key=lambda e: e["created_at"], reverse=True)
+    other = Counter((e["props"] or {}).get("type") for e in win
+                    if e["event"] == "off_topic" and not (e["props"] or {}).get("text"))
+    cancels = sum(1 for e in win if e["event"] in ("bill_cancelled", "payment_cancelled"))
+    fixes = sum(1 for e in win if e["event"] in FIX_EVENTS)
+    hints = sum(1 for e in win if e["event"] == "typed_yes" and (e["props"] or {}).get("result") != "confirm")
+    out = ["## What owners sent that the bot did not get (fix these)"]
+    out += [f"- {e['created_at'].astimezone(IST):%d %b %H:%M} · {code.get(str(e['shop_id']), '?')} · "
+            f"\"{mask_numbers(e['props']['text'])}\"" for e in missed[:limit]]
+    if len(missed) > limit:
+        out.append(f"- ... and {len(missed) - limit} more: RUN_mistakes.bat lists them all")
+    if not missed:
+        out.append("- Nothing missed in typed messages")
+    if other:
+        out.append("- Other things not understood: " + ", ".join(f"{k} {v}" for k, v in other.most_common()))
+    out += [f"- Cards cancelled: {cancels}; fixes after saving: {fixes}; 'ok' that needed a hint: {hints}", ""]
+    return out
 
 
 def feedback_lines(win: list[dict], code: dict, c) -> list[str]:
@@ -263,8 +357,11 @@ def speed_line(timed: list[dict]) -> str:
     kinds = ", ".join(f"{k} {_median(v) / 1000:.1f} s" for k, v in sorted(by.items(), key=lambda kv: -len(kv[1])))
     parts = ", ".join(f"{label} {_median([t.get(key, 0) for t in timed]) / 1000:.1f} s"
                       for label, key in (("database", "db_ms"), ("WhatsApp", "wa_ms"), ("other (AI, voice)", "other_ms")))
+    first = [t.get("ms", 0) for t in timed if t.get("first")]
+    cold = (f"\n- First reply after a restart or a sleep: median {_median(first) / 1000:.1f} s over {len(first)} "
+            f"(slow = the host slept: check the 5-minute pinger)") if first else ""
     return (f"- Reply time: median {_median([t.get('ms', 0) for t in timed]) / 1000:.1f} s over {len(timed)} replies "
-            f"({kinds}); median parts: {parts}")
+            f"({kinds}); median parts: {parts}" + cold)
 
 
 def window_start(today: date, days: int) -> datetime:

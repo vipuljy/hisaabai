@@ -188,7 +188,7 @@ def test_old_dues_and_goods_sent_back(ready):
     w = ready
     w.run(text("Mehta Traders ko 3000 dena hai"))     # dues the bot did not know: added on a tap
     w.run(tap(btn(w, "fut_add:")))
-    assert "Udhaar jodna" in w.wa.last["body"]
+    assert "Purana baaki jodna" in w.wa.last["body"]
     w.run(tap(btn(w, "ok:")))
     assert dues(w)["Mehta Traders"] == 3000 and M.PROOF_OFFER.strip() not in w.wa.last["body"]
     w.run(text("Gupta ko 500 ka maal wapas kiya"))    # goods sent back: the baaki goes DOWN

@@ -8,6 +8,8 @@
   python -m bot.admin list-shops                       codes, segments, status, group (no phone numbers)
   python -m bot.admin assign-groups                    random treatment / control split, balanced by segment
   python -m bot.admin delete-shop S01                  delete a shop, ALL its data and photos (privacy promise)
+  python -m bot.admin mistakes [days]                  what owners sent that the bot did not get + feature
+                                                       adoption per shop (default 14 days)
   python -m bot.admin health [days]                    the pilot health report (default: today + 7 days), also
                                                        saved to outputs/pilot/health_<date>.md
 """
@@ -89,12 +91,12 @@ def main(argv=None, store=None, out=print, photos=None) -> int:
         return 0
 
     if cmd == "assign-groups":
-        # T-codes are numbers that joined while PILOT_OPEN=1 (Vipul's own test phone, friendly-test shops): they are
-        # not pilot shops and stay out of the experiment (23 Nov). Pilot shops are added with add-shop (S01, S02...).
+        # Only real pilot shops (S01, S02...) join the experiment. T-codes (numbers that joined while PILOT_OPEN=1:
+        # Vipul's own phone) and F-codes (family and friends, 24 Nov) are friendly users and never get a group.
         todo = [s for s in store.list_shops() if s["status"] != "opted_out" and not s.get("experiment_group")
-                and not re.fullmatch(r"T\d+", s.get("shop_code") or "")]
+                and re.fullmatch(r"S\d+", s.get("shop_code") or "")]
         if not todo:
-            out("Every pilot shop already has a group (test shops T01... never get one).")
+            out("Every pilot shop already has a group (friendly users F01... and test phones T01... never get one).")
             return 0
         groups = assign_groups(todo)
         for s in todo:
@@ -117,6 +119,20 @@ def main(argv=None, store=None, out=print, photos=None) -> int:
                     "Run the same command again later.")
         else:
             out(f"No shop {code}.")
+        return 0
+
+    if cmd == "mistakes" and len(args) <= 1 and (not args or args[0].isdigit()):
+        # 24 Nov: everything owners sent that the bot did not get (their words, numbers masked) + feature adoption
+        from datetime import datetime
+
+        from bot import health
+        days = max(1, min(int(args[0]) if args else 14, 60))
+        today = datetime.now(health.IST).date()
+        events = [e for e in store.events_since(health.window_start(today, days))]
+        code = {str(s["id"]): s["shop_code"] for s in store.list_shops()}
+        out(f"# Mistakes and feature adoption, last {days} days\n")
+        out("\n".join(health.mistakes_lines(events, code, limit=500)))
+        out("\n".join(health.adoption_lines(events, code)) or "No shop activity yet.")
         return 0
 
     if cmd == "health" and len(args) <= 1 and (not args or args[0].isdigit()):

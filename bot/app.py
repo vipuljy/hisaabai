@@ -119,8 +119,8 @@ def bot_from_env():
     if os.getenv("QA_LLM", "").strip() == "1" and os.getenv("ANTHROPIC_API_KEY", "").strip():
         from bot.questions import llm_question_parser
         question_llm = partial(llm_question_parser, model=os.getenv("BILL_MODEL", "claude-haiku-5-5"))
-    limits = Limits(per_shop_per_day=_env_number("AI_CALLS_PER_SHOP_PER_DAY", 60),
-                    total_per_day=_env_number("AI_CALLS_PER_DAY", 1000),
+    limits = Limits(per_shop_per_day=_env_number("AI_CALLS_PER_SHOP_PER_DAY", 30),
+                    total_per_day=_env_number("AI_CALLS_PER_DAY", 300),
                     max_image_mb=_env_number("MAX_IMAGE_MB", 8.0, float),
                     max_pdf_mb=_env_number("MAX_PDF_MB", 10.0, float))
     if not os.getenv("APP_SECRET", "").strip():
@@ -129,7 +129,7 @@ def bot_from_env():
     return Bot(store, wa, extractor, pilot_open=os.getenv("PILOT_OPEN", "") == "1",
                transcriber=transcriber, entry_parser=entry_parser, photos=photos_from_env(), limits=limits,
                question_llm=question_llm, timing_events=True,
-               feedback_prompts=True)
+               feedback_prompts=True, coach=True)
 
 
 def config_problem() -> str | None:

@@ -189,3 +189,35 @@ def test_bot_at_the_ai_cap_text_pdf_still_works_scanned_pdf_waits(world):
     serve(world, scanned_pdf(1))
     world.run(document())
     assert "limit_hit" in world.events() and world.events().count("bill_received") == 1
+
+
+# ---------------------------------------------------------------- 24 Nov: quotations, jurisdiction lines, the report
+def test_a_quotation_is_not_saved_as_a_bill(world):
+    onboard(world)
+    serve(world, text_pdf([["MEHTA ENTERPRISES", "QUOTATION", "Quote No: Q-42  Date: 05/10/2026"] + ITEMS + TOTAL]))
+    world.run(document())
+    assert world.wa.last["body"] == M.PDF_NOT_A_BILL
+    assert "bill_received" not in world.events() and "ai_call" not in world.events()
+    assert any(e["event"] == "pdf_rejected" and e["props"]["reason"] == "not_a_bill" for e in _events(world.store))
+
+
+def test_an_estimate_is_still_a_bill():   # kachha (non-GST) bills are often printed as ESTIMATE
+    r = read_pdf.read_whatsapp_pdf(text_pdf([["GUPTA GENERAL STORE", "ESTIMATE", "No: 342  Date: 05/10/2026"]
+                                             + ITEMS + TOTAL]))
+    assert r["route"] == "text" and r["fields"]["total_amount"] == 4769
+
+
+def test_a_jurisdiction_line_on_top_is_not_the_supplier():
+    r = read_pdf.read_whatsapp_pdf(text_pdf([["Subject to Jaipur Jurisdiction"] + HEADER + ITEMS + TOTAL]))
+    assert r["fields"]["supplier_name"] == "shiv medical distributors"
+
+
+def test_pdf_bills_tick_the_pdf_column():
+    from datetime import datetime, timezone
+
+    from bot import health
+    now = datetime(2026, 11, 25, 6, 0, tzinfo=timezone.utc)
+    win = [{"shop_id": "1", "event": "bill_received", "props": {"source": s}, "created_at": now}
+           for s in ("pdf_text", "pdf_scan")]
+    out = "\n".join(health.adoption_lines(win, {"1": "S01"}))
+    assert "| S01 |  | ✓ |" in out

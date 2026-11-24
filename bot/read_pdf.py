@@ -72,6 +72,9 @@ def read_pdf_text(pdf_path: Path, page: int, today=None) -> Extraction:
 MAX_PAGES = 10          # supplier bills are 1-3 pages; more is a statement or catalogue -> ask for the bill page
 RENDER_LONG_SIDE = 1600  # about a WhatsApp photo, so a scanned page reads like a photo
 MIN_CHARS_SHORT_PAGE = 15  # in a PDF that has text, a page this short is still read (a last page with only the total)
+# A title near the top of page 1. Not "estimate": many kachha (non-GST) bills are printed as ESTIMATE.
+NOT_A_BILL = re.compile(r"(?<![a-z])(?:quotation|quote\s*no|proforma|pro[\s-]*forma|price\s*list|rate\s*list)(?![a-z])",
+                        re.I)
 HEADER_FIELDS = ("supplier_name", "bill_date", "invoice_number", "due_date")  # printed on page 1 of a multi-page bill
 
 
@@ -107,6 +110,9 @@ def _read_whatsapp_pdf(pdf, today) -> dict:
             tp.close()
             pg.close()
         out = {"pages": n, "route": "image", "reason": "scanned", "page": n, "fields": None}
+        if texts and NOT_A_BILL.search("\n".join((texts[0] or "").splitlines()[:15])):
+            out.update(route="none", reason="not_a_bill")   # 24 Nov: a quotation is a price offer, not goods bought
+            return out
         text_pages = []
         if any(has_text(t) for t in texts):  # a text PDF: its short last page ('GRAND TOTAL ...') counts too
             text_pages = [i for i, t in enumerate(texts) if len(re.sub(r"\W", "", t or "")) >= MIN_CHARS_SHORT_PAGE]

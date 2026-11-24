@@ -81,7 +81,7 @@ def test_typo_question_and_old_dues_phrases(ready):
     w.run(text("sharma ka hiasb"))
     assert "*Sharma Traders*" in w.wa.last["body"] and "baaki" in w.wa.last["body"]
     w.run(text("Sharma ka 1000 purana hisab jodo"))
-    assert "Udhaar jodna" in w.wa.last["body"] and "₹5,000 → *₹6,000*" in w.wa.last["body"]
+    assert "Purana baaki jodna" in w.wa.last["body"] and "₹5,000 → *₹6,000*" in w.wa.last["body"]
     w.run(text("Gupta se 500 ka bartan liya"))
     assert "Naya bill" in w.wa.last["body"] and "Gupta Agency" in w.wa.last["body"]
 

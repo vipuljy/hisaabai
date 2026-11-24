@@ -72,7 +72,7 @@ def main():
                      prompt_version=os.getenv("BILL_PROMPT", "v3")) if real else sample_reader
     wa = PrintWA()
     bot = Bot(MemoryStore(), wa, reader, pilot_open=True, image_dir=Path("data/raw/bills_simulator"),
-              feedback_prompts=True)
+              feedback_prompts=True, coach=True)
     print(__doc__)
     print("Bill reading:", "REAL (Claude)" if real else "SAMPLE (no API key in .env)")
     print("Start by typing: hi")

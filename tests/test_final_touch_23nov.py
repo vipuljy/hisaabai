@@ -95,7 +95,7 @@ def test_small_words_normalises_what_owners_type():
 
 def test_welcome_promises_what_every_shop_gets():
     assert "Payment ki date pe" not in M.WELCOME          # due reminders go to the treatment group only
-    assert "yaad bhi dilaunga" in M.WELCOME
+    assert "udhaar" not in M.WELCOME.lower() and "munshi" not in M.WELCOME.lower()   # 24 Nov wording
     assert (M.WELCOME + M.WELCOME_FOOTER).count("🔒") == 1
 
 

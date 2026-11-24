@@ -61,9 +61,9 @@ services:
       - key: PILOT_OPEN
         value: ""
       - key: AI_CALLS_PER_SHOP_PER_DAY
-        value: "60"
+        value: "30"
       - key: AI_CALLS_PER_DAY
-        value: "1000"
+        value: "300"
       - key: MAX_IMAGE_MB
         value: "8"
       - key: MAX_PDF_MB

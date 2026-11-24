@@ -209,7 +209,7 @@ _SKIP_START = re.compile(
     r"cash\s*memo|estimate|quotation|credit|cash|debit|to)\b", re.I)
 _SKIP_ANY = re.compile(
     r"@|www\.|https?:|gstin|gst\s*no|phone|\bph\.|\bmob|e-?mail|\btel\b|d\.?\s*l\.?\s*no|\bpan\b|\bcin\b|fssai|"
-    r"\|\||!!|namah|shree\s*ganesh|jai\s*mata|\bom\b", re.I)
+    r"\|\||!!|namah|shree\s*ganesh|jai\s*mata|\bom\b|subject\s*to|jurisdiction", re.I)
 
 
 def find_supplier(text: str) -> str | None:

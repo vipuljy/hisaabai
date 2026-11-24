@@ -9,6 +9,8 @@ that gives the two numbers the case study needs (time per bill, willingness to p
 - Double-click `RUN_add_shop.bat`: shop code (S01, S02...), type (kirana / medical / hardware / other), the owner's
   WhatsApp number (it goes only into the database), shop name if you know it. `PILOT_OPEN` stays empty, so only
   added shops can use the bot. (Same as `python -m bot.admin add-shop S01 kirana 98xxxxxxxx`.)
+- **Family and friends get F codes** (F01, F02...): same bot, but they never join the experiment and never count in
+  the case study (the health report shows "Real pilot shops (S codes)" apart). Real shops get S codes.
 - Have the production number saved on your phone as "VahiBook" so you can share the contact.
 - One printed card per shop.
 
@@ -31,6 +33,15 @@ Say it in your own words; the points matter, not the script.
 After all shops are in: double-click `RUN_assign_groups.bat` once and type YES (groups never change after this;
 test shops T01... stay out). `RUN_list_shops.bat` shows every shop and its group, never a number.
 
+**If the owner skips the tour** (*baad mein*), fine: *sikhao* any time shows every feature in one message, and the
+health report lists "tour not finished" shops for you to nudge on day 3.
+
+**What the owner sees (24 Nov):** after *Shuru karein* the bot runs a 3-step tour by itself (photo → voice payment →
+*kitna baaki hai*), so you only stand next to them; then it asks the shop name. Tips for the other features come
+later, one after saves 3, 5, 7, 9 and 11. **Before you leave, add their old dues** (ask "kis supplier ka pehle ka
+kitna baaki hai?" and let them type *Gupta ka purana baaki 12000*), so *kitna baaki hai* shows the real picture
+from day 1.
+
 Owners may type *ok* / *haan* instead of tapping *Sahi hai*: with one card open that saves it (23 Nov), so you do
 not need to teach the button, only "card dekh ke *Sahi hai* bol dijiye ya daba dijiye".
 
@@ -38,7 +49,12 @@ not need to teach the button, only "card dekh ke *Sahi hai* bol dijiye ya daba d
 - **Day 3:** "Namaste ji, VahiBook kaisa chal raha hai? Koi dikkat ya koi cheez samajh nahi aayi?" Write the answer
   in the tracker. If nothing was entered since onboarding, ask what got in the way (not "please use it").
 - **Day 10:** same, plus fix the exit-interview time.
-- **Every morning:** `RUN_pilot_health.bat` (5 minutes). Watch: cards cancelled, fixes soon after a save (a wrong
+- **Every morning:** `RUN_pilot_health.bat` (5 minutes), then `RUN_mistakes.bat` (every message the bot did not
+  understand, numbers hidden). Each new phrasing found there is a fix for that day: add it, run the tests, push.
+- **Cost and speed guards (set once):** Render env `AI_CALLS_PER_SHOP_PER_DAY=30`, `AI_CALLS_PER_DAY=300`; a monthly
+  spend limit in the Anthropic console; a free uptime ping (cron-job.org) to `/health` every 5 minutes so the first
+  reply of the day is not 10-15 s.
+- **In the health report, watch:** cards cancelled, fixes soon after a save (a wrong
   card), duplicate warnings kept as new, spelling fixes that look wrong, slow replies, shops silent for 3+ days.
 - **Day 7 rule:** fewer than 8 shops active one week after the last onboarding → stop adding features; fix
   onboarding first (`docs/02_plan.md`).

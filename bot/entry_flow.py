@@ -620,9 +620,9 @@ class EntryFlow:
         self._set_state(shop, {})
         self._forget(shop)
         due = self._due_of(shop, sup["id"])
-        await self._text(shop, M.refund_saved(sup["name"], due, why) if refund else M.pay_saved(sup["name"], due))
-        if not await self._maybe_ask_shop_name(shop):
-            await self._maybe_ask_rating(shop)
+        await self._text(shop, (M.refund_saved(sup["name"], due, why) if refund else M.pay_saved(sup["name"], due))
+                         + self._tip_line(shop))
+        await self._after_save(shop)
 
     async def _cancel_payment(self, shop, pid, dup=False):
         if self._own_pending_payment(shop, pid) is None:

@@ -5,7 +5,8 @@ cd /d "%~dp0"
 chcp 65001 >nul
 set PYTHONIOENCODING=utf-8
 echo.
-echo Shop code: S01 for the first shop, S02 for the second, and so on.
+echo Shop code: S01, S02 ... for real pilot shops.
+echo            F01, F02 ... for family and friends (they never join the experiment or the case-study numbers).
 set /p CODE=Shop code: 
 echo Shop type: kirana, medical, hardware or other
 set /p SEG=Shop type: 
