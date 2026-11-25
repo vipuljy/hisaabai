@@ -308,3 +308,28 @@ def test_demo_and_a_real_entry_together(world):
     assert "Practice ki 1 entry hata di" in end and "1 entry aapke hisaab mein rakhi" in end and "khaali" not in end
     world.run(text("kitna baaki hai"))
     assert "440" in world.wa.last["body"] and "Demo" not in world.wa.last["body"]
+
+
+# ------------------------------------------------------------------ 8. cancel (25 Nov)
+def test_typed_cancel_closes_the_open_card(world):
+    onboard(world)
+    world.run(text("Gupta ka bill 4580"))
+    world.run(text("cancel"))
+    assert world.wa.last["body"] == M.BILL_CANCELLED                       # not "no such entry in 7 days"
+    assert events(world, "bill_cancelled")
+    world.run(text("kitna baaki hai"))
+    assert "4,580" not in world.wa.last["body"]
+
+
+def test_cancel_in_the_tour_shows_the_step_again_and_never_quits_it(world):
+    world.bot.coach = True
+    onboard(world)
+    world.run(text("Demo ka bill 500"))
+    world.run(text("cancel"))
+    assert world.wa.last["body"] == M.TOUR_AFTER_CANCEL.format(step=M.TOUR_STEP[1])
+    world.run(text("cancel"))                                                # nothing open: still in the tour
+    assert not events(world, "tour_done")
+    assert world.wa.last["body"] == M.TOUR_REMIND.format(step=M.TOUR_STEP[1])
+    world.run(text("Demo ka bill 500"))
+    world.run(text("ok"))
+    assert world.wa.last["body"] == M.TOUR_2

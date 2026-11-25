@@ -128,6 +128,10 @@ class FeedbackFlow:
         return True
 
     async def _after_cancel(self, shop):
+        if self._tour_on(shop):   # 25 Nov: a cancel in the practice round must not leave him without a next step
+            self.store.log_event(shop["id"], "tour_reminded", {"step": self._tour_step_now(shop), "after": "cancel"})
+            await self._text(shop, M.TOUR_AFTER_CANCEL.format(step=M.TOUR_STEP[self._tour_step_now(shop)]))
+            return
         if not self.feedback_prompts:
             return
         since = datetime.now(timezone.utc) - timedelta(minutes=30)

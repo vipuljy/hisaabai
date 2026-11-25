@@ -976,6 +976,8 @@ class Bot(EntryFlow, FeedbackFlow):
             return
         if small in CARD_YES_WORDS and await self._typed_yes(shop, state):
             return
+        if small in CANCEL_WORDS and await self._typed_cancel(shop, state):
+            return
         if small in THANKS_WORDS or small in GREET_WORDS:
             self.store.log_event(shop["id"], "small_talk", {"kind": "thanks" if small in THANKS_WORDS else "greeting"})
             await self._text(shop, M.THANKS_REPLY if small in THANKS_WORDS else M.GREET_REPLY)
@@ -1086,10 +1088,10 @@ class Bot(EntryFlow, FeedbackFlow):
         since = datetime.now(timezone.utc) - timedelta(minutes=30)
         busy = bool(state.get("await")) or bool(self.store.pending_count(shop["id"], since)) \
             or self._asked.get(str(shop["id"])) == "question"
-        if small in TOUR_SKIP_WORDS or (small in CANCEL_WORDS and not busy):
+        if small in TOUR_SKIP_WORDS:
             await self._end_tour(shop, "skipped", M.TOUR_SKIPPED, ask_name=False)
             return True
-        if not busy and (small in MENU_WORDS or small in GREET_WORDS):
+        if not busy and (small in MENU_WORDS or small in GREET_WORDS or small in CANCEL_WORDS):
             self.store.log_event(shop["id"], "tour_reminded", {"step": self._tour_step_now(shop)})
             await self._text(shop, M.TOUR_REMIND.format(step=M.TOUR_STEP[self._tour_step_now(shop)]))
             return True
@@ -1169,6 +1171,26 @@ class Bot(EntryFlow, FeedbackFlow):
             await self._confirm_bill(shop, card["id"])
         else:
             await self._confirm_payment(shop, card["id"])
+        return True
+
+    async def _typed_cancel(self, shop, state) -> bool:
+        """25 Nov: 'cancel' typed under a card closes that card, like tapping Cancel (before, it was read as 'change
+        an old entry' and got "no such entry in 7 days"). Several cards or a question waiting: ask for the button.
+        False: no card open (the word keeps its older meanings)."""
+        since = datetime.now(timezone.utc) - timedelta(minutes=30)
+        cards = self.store.pending_entries(shop["id"], since)
+        if not cards:
+            return False
+        if len(cards) > 1 or state.get("await") or self._asked.get(str(shop["id"])) == "question":
+            self.store.log_event(shop["id"], "typed_cancel", {"result": "ask_tap", "open": len(cards)})
+            await self._text(shop, M.TAP_THE_BUTTON)
+            return True
+        card = cards[0]
+        self.store.log_event(shop["id"], "typed_cancel", {"result": "cancel", "t": card["t"]})
+        if card["t"] == "b":
+            await self._cancel_bill(shop, card["id"])
+        else:
+            await self._cancel_payment(shop, card["id"])
         return True
 
     def _leaves_value_state(self, state, text, lower) -> bool:
