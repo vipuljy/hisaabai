@@ -146,6 +146,9 @@ def practice_keep_ask(lines: list[str], demo_removed: int = 0) -> str:
 
 BTN_PRACTICE_DEL = "🗑️ Hata do"
 BTN_PRACTICE_KEEP = "✅ Rakho, asli hai"
+TOUR_NOT_UNDERSTOOD = ("🤔 Ye samajh nahi aaya. Abhi *practice* chal rahi hai, bas ye kijiye:\n\n{step}\n\n"
+                       "_Tour chhodna ho to likhiye: baad mein_")
+PRACTICE_KEEP_AGAIN = "👆 Pehle ye bata dijiye, phir practice poori:\n\n"
 TOUR_AFTER_CANCEL = "Koi baat nahi, ye practice hai 🙂 Phir se try kijiye:\n\n{step}\n\n_Tour chhodna ho to likhiye: baad mein_"
 TOUR_REMIND = "👋 Chaliye, wahin se aage badhte hain.\n\n{step}\n\n" + TOUR_SKIP_HINT
 TOUR_DONE = ("🎉 Bas! Aap taiyaar hain. Ab hisaab apne aap chalega.\n\n"

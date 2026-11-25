@@ -28,6 +28,7 @@ from __future__ import annotations
 import asyncio
 import time
 import contextvars
+import json
 import logging
 import re
 import time as _time
@@ -79,6 +80,10 @@ GREET_WORDS = {"good morning", "gm", "good night", "gn", "good evening", "good a
 # 24 Nov: an owner may not want the tour, or may get lost in it
 TOUR_SKIP_WORDS = {"baad mein", "baad me", "bad mein", "bad me", "baad main", "skip", "skip karo", "later", "abhi nahi",
                    "tour band", "tour nahi", "tour nahi chahiye", "nahi seekhna", "pata hai", "mujhe pata hai"}
+PRACTICE_KEEP_WORDS = {"rakho", "rakh lo", "rakho asli hai", "rakho, asli hai", "asli", "asli hai", "asli hain", "keep",
+                       "rakhna", "rakhni hai", "rakhna hai", "haan rakho", "rakh do"}
+PRACTICE_DEL_WORDS = {"hata do", "hatao", "hata", "hataiye", "delete", "practice thi", "practice", "hatana", "hatana hai",
+                      "mita do", "mitao", "nahi rakhna", "hata do practice thi"}
 GUIDE_WORDS = {"sikhao", "sikha do", "sikhaiye", "seekhna hai", "tour", "demo", "guide", "features", "kaise use kare",
                "kaise use karein", "kaise use karu", "kaise chalaye", "kaise chalayein", "kaise chalate hai",
                "kya kya kar sakte ho", "kya kar sakte ho", "kya kya hota hai", "kya kya kar sakta hai"}
@@ -301,8 +306,10 @@ class Bot(EntryFlow, FeedbackFlow):
         start = _time.perf_counter()
         db, wa = [0, 0.0], [0, 0.0]
         tokens = (DB_TIMER.set(db), WA_TIMER.set(wa), TYPING.set(None))
+        self._keep_asked_now = set()
         try:
             await self._handle(msg)
+            await self._practice_nudge(msg)
         finally:
             await self._typing_done()
             ms = int((_time.perf_counter() - start) * 1000)
@@ -968,6 +975,9 @@ class Bot(EntryFlow, FeedbackFlow):
             lower = text.lower().strip(" .!")
             self.store.log_event(shop["id"], "typo_fixed", {"words": len(slips)})
         small = small_words(lower)
+        if (small in PRACTICE_KEEP_WORDS or small in PRACTICE_DEL_WORDS) and self._practice_pending(shop):
+            await self._on_practice_button(shop, "keep" if small in PRACTICE_KEEP_WORDS else "del")
+            return
         if small in GUIDE_WORDS:   # 'sikhao': every feature in one message, any time
             self.store.log_event(shop["id"], "guide_viewed", {"in_tour": self._tour_on(shop)})
             await self._text(shop, M.GUIDE)
@@ -1003,6 +1013,13 @@ class Bot(EntryFlow, FeedbackFlow):
             return
         if parsed.intent:
             await self._start_question(shop, parsed, "rules", "text")
+            return
+        if self._tour_on(shop) and not F.FRUSTRATED_RE.search(lower):
+            # 25 Nov: a new owner in the practice round who sends something the bot does not get ('50', 'hisab')
+            # gets his step again, not the 10-row menu that leads him away from the tour
+            self.store.log_event(shop["id"], "off_topic", {"type": "text", "text": F.mask_numbers(text)[:200],
+                                                           "in_tour": True})
+            await self._text(shop, M.TOUR_NOT_UNDERSTOOD.format(step=M.TOUR_STEP[self._tour_step_now(shop)]))
             return
         if parsed.hisaab_like:
             await self._unclear_question(shop, text, parsed, suppliers, "text")
@@ -1044,12 +1061,9 @@ class Bot(EntryFlow, FeedbackFlow):
             self.store.log_event(shop["id"], "tour_practice_cleared", {"n": len(demo)})
         other = [e for e in entries if e not in demo]
         if other:
-            self.store.log_event(shop["id"], "tour_keep_asked", {"n": len(other)})
+            self.store.log_event(shop["id"], "tour_keep_asked", {"v": 1, "n": len(other), "how": how})
             self._set_state(shop, {"await": "tour_keep", "text": text, "ask_name": ask_name, "cleared": len(demo)})
-            lines = [f"{e.get('supplier') or '?'}: {M.inr(e['amount'])}"
-                     + (" (payment)" if e["type"] == "payment" else "") for e in other]
-            await self._buttons(shop, M.practice_keep_ask(lines, len(demo)),
-                                [("tk:del", M.BTN_PRACTICE_DEL), ("tk:keep", M.BTN_PRACTICE_KEEP)])
+            await self._ask_practice_keep(shop, other, len(demo))
             return
         await self._finish_tour_text(shop, text, len(demo), ask_name)
 
@@ -1067,18 +1081,55 @@ class Bot(EntryFlow, FeedbackFlow):
         if ask_name:
             await self._maybe_ask_shop_name(shop)
 
+    async def _ask_practice_keep(self, shop, entries, demo_removed=0, again=False):
+        lines = [f"{e.get('supplier') or '?'}: {M.inr(e['amount'])}"
+                 + (" (payment)" if e["type"] == "payment" else "") for e in entries]
+        body = M.practice_keep_ask(lines, demo_removed)
+        self._keep_asked_now.add(str(shop["id"]))
+        await self._buttons(shop, (M.PRACTICE_KEEP_AGAIN + body) if again else body,
+                            [("tk:del", M.BTN_PRACTICE_DEL), ("tk:keep", M.BTN_PRACTICE_KEEP)])
+
+    def _practice_pending(self, shop) -> bool:
+        """The keep-or-remove question was asked and not answered yet. Event-based (25 Nov): other flows (a supplier's
+        detail, a question) reset the shop's state, and the question must survive them. Only new shops are checked."""
+        consent = shop.get("consent_at")
+        if isinstance(consent, str):
+            consent = datetime.fromisoformat(consent)
+        if not consent or datetime.now(timezone.utc) - consent > timedelta(days=3):
+            return False
+        return self.store.event_exists(shop["id"], "tour_keep_asked", "v", 1) \
+            and not self.store.event_exists(shop["id"], "tour_practice_choice", "v", 1)
+
+    async def _practice_nudge(self, msg):
+        """After any reply: if the keep-or-remove question is still open and was not just shown, show it again, so
+        the practice round always ends with his choice and the 'Ab se asli hisaab' line."""
+        if not self.coach or not msg.get("from"):
+            return
+        if msg.get("type") == "interactive" and "tk:" in json.dumps(msg.get("interactive") or {}):
+            return
+        shop = self.store.get_shop_by_wa(msg["from"])
+        if not shop or str(shop["id"]) in self._keep_asked_now or not self._practice_pending(shop):
+            return
+        entries = self._tour_entries(shop)
+        if not entries:   # nothing left to decide (he fixed or removed them himself): close the round
+            await self._on_practice_button(shop, "keep")
+            return
+        await self._ask_practice_keep(shop, entries, again=True)
+
     async def _on_practice_button(self, shop, choice: str):
         state = shop.get("state") or {}
-        if state.get("await") != "tour_keep":
+        if state.get("await") != "tour_keep" and not self._practice_pending(shop):
             await self._text(shop, M.MENU)
             return
+        if state.get("await") != "tour_keep":   # the state was reset by another flow: the defaults
+            state = {"text": M.TOUR_DONE, "ask_name": True, "cleared": 0}
         self._set_state(shop, {})
         removed = 0
         if choice == "del":
             for e in self._tour_entries(shop):
                 self.store.delete_entry(shop["id"], e["type"], e["id"], "button")   # schema allows voice/typed/button/proof; the reason is in the tour_practice event
                 removed += 1
-        self.store.log_event(shop["id"], "tour_practice_choice", {"choice": choice, "n": removed})
+        self.store.log_event(shop["id"], "tour_practice_choice", {"v": 1, "choice": choice, "n": removed})
         await self._finish_tour_text(shop, state.get("text") or M.TOUR_DONE,
                                      int(state.get("cleared") or 0) + removed, bool(state.get("ask_name", True)))
 
@@ -1091,7 +1142,7 @@ class Bot(EntryFlow, FeedbackFlow):
         if small in TOUR_SKIP_WORDS:
             await self._end_tour(shop, "skipped", M.TOUR_SKIPPED, ask_name=False)
             return True
-        if not busy and (small in MENU_WORDS or small in GREET_WORDS or small in CANCEL_WORDS):
+        if not busy and (small in MENU_WORDS or small in GREET_WORDS or small in CANCEL_WORDS or small in HISAAB_WORDS):
             self.store.log_event(shop["id"], "tour_reminded", {"step": self._tour_step_now(shop)})
             await self._text(shop, M.TOUR_REMIND.format(step=M.TOUR_STEP[self._tour_step_now(shop)]))
             return True

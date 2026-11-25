@@ -333,3 +333,39 @@ def test_cancel_in_the_tour_shows_the_step_again_and_never_quits_it(world):
     world.run(text("Demo ka bill 500"))
     world.run(text("ok"))
     assert world.wa.last["body"] == M.TOUR_2
+
+
+# ------------------------------------------------------------------ 9. the tour can not get stuck (25 Nov phone test)
+def test_unclear_messages_in_the_tour_get_the_step_not_the_menu(world):
+    world.bot.coach = True
+    onboard(world)
+    for t in ("hisab", "50", "kuch bhi", "menu"):
+        world.run(text(t))
+        assert "*Step 1 / 3" in world.wa.last["body"], t
+        assert not world.wa.last.get("rows"), t                              # no 10-row menu during the tour
+
+
+def test_keep_question_survives_a_detail_tap_and_takes_typed_words(world):
+    world.bot.coach = True
+    onboard(world)
+    for t in ("Gupta ka bill 4580", "ok", "Gupta ko 1000 diye", "ok", "kitna baaki hai"):
+        world.run(text(t))
+    assert "Practice khatam" in world.wa.last["body"]
+    sup = world.store.list_suppliers(world.store.get_shop_by_wa(OWNER)["id"])[0]
+    world.run(tap(f"dsup:{sup['id']}"))                                       # he opens Gupta's detail first
+    assert "Pehle ye bata dijiye" in world.wa.last["body"]                    # the question comes back
+    world.run(text("Rakho asli hai"))                                         # typed, not tapped
+    end = "\n".join(str(m.get("body")) for m in world.wa.sent[-3:])
+    assert M.REAL_START in end and "2 entry aapke hisaab mein rakhi" in end
+    assert events(world, "tour_practice_choice")[0]["props"]["choice"] == "keep"
+    world.run(text("Gupta ko 500 diye"))
+    assert "Pehle ye bata dijiye" not in str(world.wa.last.get("body"))      # answered: never asked again
+
+
+def test_typed_hata_do_removes_the_tour_entries(world):
+    world.bot.coach = True
+    onboard(world)
+    for t in ("Gupta ka bill 4580", "ok", "Gupta ko 1000 diye", "ok", "kitna baaki hai", "hata do"):
+        world.run(text(t))
+    world.run(text("kitna baaki hai"))
+    assert "Gupta" not in world.wa.last["body"]
